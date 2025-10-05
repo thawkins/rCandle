@@ -70,6 +70,10 @@ pub struct RCandleApp {
     selected_port: String,
     /// Available serial ports
     available_ports: Vec<String>,
+    /// Show settings dialog
+    show_settings_dialog: bool,
+    /// Temporary settings being edited (None when dialog is closed)
+    temp_settings: Option<Settings>,
 }
 
 impl RCandleApp {
@@ -146,6 +150,8 @@ impl RCandleApp {
             command_queue,
             selected_port: available_ports.first().cloned().unwrap_or_default(),
             available_ports,
+            show_settings_dialog: false,
+            temp_settings: None,
         }
     }
 
@@ -789,6 +795,337 @@ impl RCandleApp {
             ui.painter().circle_stroke(start, 4.0, Stroke::new(1.0, Color32::WHITE));
         }
     }
+    
+    /// Show settings dialog window
+    fn show_settings_window(&mut self, ctx: &egui::Context) {
+        let mut open = true;
+        let mut should_close = false;
+        let mut should_save = false;
+        let mut should_reset = false;
+        
+        egui::Window::new("⚙ Settings")
+            .open(&mut open)
+            .default_size([600.0, 500.0])
+            .resizable(true)
+            .show(ctx, |ui| {
+                if let Some(ref mut temp_settings) = self.temp_settings {
+                    // Tabs for different settings categories
+                    egui::TopBottomPanel::top("settings_tabs").show_inside(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            let _ = ui.selectable_label(false, "General");
+                            let _ = ui.selectable_label(false, "Connection");
+                            let _ = ui.selectable_label(false, "Visualization");
+                            let _ = ui.selectable_label(false, "Jog");
+                            let _ = ui.selectable_label(false, "UI");
+                        });
+                    });
+                    
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        Self::show_general_settings(ui, &mut temp_settings.general);
+                        
+                        ui.separator();
+                        ui.add_space(10.0);
+                        
+                        Self::show_connection_settings(ui, &mut temp_settings.connection);
+                        
+                        ui.separator();
+                        ui.add_space(10.0);
+                        
+                        Self::show_visualization_settings(ui, &mut temp_settings.visualization);
+                        
+                        ui.separator();
+                        ui.add_space(10.0);
+                        
+                        Self::show_jog_settings(ui, &mut temp_settings.jog);
+                        
+                        ui.separator();
+                        ui.add_space(10.0);
+                        
+                        Self::show_ui_settings(ui, &mut temp_settings.ui);
+                    });
+                    
+                    ui.separator();
+                    
+                    // Bottom buttons
+                    ui.horizontal(|ui| {
+                        if ui.button("💾 Save").clicked() {
+                            should_save = true;
+                        }
+                        
+                        if ui.button("🔄 Reset to Defaults").clicked() {
+                            should_reset = true;
+                        }
+                        
+                        if ui.button("❌ Cancel").clicked() {
+                            should_close = true;
+                        }
+                    });
+                }
+            });
+        
+        // Handle actions outside the closure to avoid borrowing issues
+        if should_save {
+            if let Some(ref temp_settings) = self.temp_settings {
+                self.settings = temp_settings.clone();
+                if let Err(e) = self.settings.save_default() {
+                    self.console.error(format!("Failed to save settings: {}", e));
+                } else {
+                    self.console.info("Settings saved".to_string());
+                }
+            }
+            self.show_settings_dialog = false;
+            self.temp_settings = None;
+        }
+        
+        if should_reset {
+            self.temp_settings = Some(crate::settings::Settings::default());
+            self.console.info("Settings reset to defaults".to_string());
+        }
+        
+        if should_close || !open {
+            self.show_settings_dialog = false;
+            self.temp_settings = None;
+        }
+    }
+    
+    /// Show general settings
+    fn show_general_settings(ui: &mut egui::Ui, settings: &mut crate::settings::GeneralSettings) {
+        ui.heading("General Settings");
+        ui.add_space(5.0);
+        
+        egui::Grid::new("general_settings_grid")
+            .num_columns(2)
+            .spacing([10.0, 8.0])
+            .show(ui, |ui| {
+                ui.label("Units:");
+                ui.horizontal(|ui| {
+                    ui.radio_value(&mut settings.units_metric, true, "Metric (mm)");
+                    ui.radio_value(&mut settings.units_metric, false, "Imperial (inches)");
+                });
+                ui.end_row();
+                
+                ui.label("Arc Precision (°):");
+                ui.add(egui::DragValue::new(&mut settings.arc_precision)
+                    .speed(0.1)
+                    .clamp_range(0.1..=10.0));
+                ui.end_row();
+                
+                ui.label("Arc Segments:");
+                ui.add(egui::DragValue::new(&mut settings.arc_segments)
+                    .speed(1)
+                    .clamp_range(4..=100));
+                ui.end_row();
+                
+                ui.label("Safe Z Height:");
+                ui.add(egui::DragValue::new(&mut settings.safe_z)
+                    .speed(0.1)
+                    .clamp_range(0.0..=100.0)
+                    .suffix(if settings.units_metric { " mm" } else { " in" }));
+                ui.end_row();
+            });
+    }
+    
+    /// Show connection settings
+    fn show_connection_settings(ui: &mut egui::Ui, settings: &mut crate::settings::ConnectionSettings) {
+        ui.heading("Connection Settings");
+        ui.add_space(5.0);
+        
+        egui::Grid::new("connection_settings_grid")
+            .num_columns(2)
+            .spacing([10.0, 8.0])
+            .show(ui, |ui| {
+                ui.label("Port Name:");
+                ui.text_edit_singleline(&mut settings.port_name);
+                ui.end_row();
+                
+                ui.label("Baud Rate:");
+                egui::ComboBox::from_id_source("baud_rate_combo")
+                    .selected_text(format!("{}", settings.baud_rate))
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut settings.baud_rate, 9600, "9600");
+                        ui.selectable_value(&mut settings.baud_rate, 19200, "19200");
+                        ui.selectable_value(&mut settings.baud_rate, 38400, "38400");
+                        ui.selectable_value(&mut settings.baud_rate, 57600, "57600");
+                        ui.selectable_value(&mut settings.baud_rate, 115200, "115200");
+                        ui.selectable_value(&mut settings.baud_rate, 230400, "230400");
+                    });
+                ui.end_row();
+                
+                ui.label("Connection Timeout:");
+                ui.add(egui::DragValue::new(&mut settings.timeout_ms)
+                    .speed(100)
+                    .clamp_range(100..=30000)
+                    .suffix(" ms"));
+                ui.end_row();
+                
+                ui.label("Command Timeout:");
+                ui.add(egui::DragValue::new(&mut settings.command_timeout_ms)
+                    .speed(100)
+                    .clamp_range(100..=60000)
+                    .suffix(" ms"));
+                ui.end_row();
+                
+                ui.label("Status Query Interval:");
+                ui.add(egui::DragValue::new(&mut settings.status_query_interval_ms)
+                    .speed(10)
+                    .clamp_range(50..=5000)
+                    .suffix(" ms"));
+                ui.end_row();
+                
+                ui.label("Auto-connect on Startup:");
+                ui.checkbox(&mut settings.auto_connect, "");
+                ui.end_row();
+            });
+    }
+    
+    /// Show visualization settings
+    fn show_visualization_settings(ui: &mut egui::Ui, settings: &mut crate::settings::VisualizationSettings) {
+        ui.heading("Visualization Settings");
+        ui.add_space(5.0);
+        
+        egui::Grid::new("visualization_settings_grid")
+            .num_columns(2)
+            .spacing([10.0, 8.0])
+            .show(ui, |ui| {
+                ui.label("Show Grid:");
+                ui.checkbox(&mut settings.show_grid, "");
+                ui.end_row();
+                
+                ui.label("Grid Size:");
+                ui.add(egui::DragValue::new(&mut settings.grid_size)
+                    .speed(1.0)
+                    .clamp_range(1.0..=100.0));
+                ui.end_row();
+                
+                ui.label("Show Tool:");
+                ui.checkbox(&mut settings.show_tool, "");
+                ui.end_row();
+                
+                ui.label("Show Origin:");
+                ui.checkbox(&mut settings.show_origin, "");
+                ui.end_row();
+                
+                ui.label("Show Bounds:");
+                ui.checkbox(&mut settings.show_bounds, "");
+                ui.end_row();
+                
+                ui.label("MSAA Samples:");
+                egui::ComboBox::from_id_source("msaa_combo")
+                    .selected_text(format!("{}x", settings.msaa_samples))
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut settings.msaa_samples, 1, "1x");
+                        ui.selectable_value(&mut settings.msaa_samples, 2, "2x");
+                        ui.selectable_value(&mut settings.msaa_samples, 4, "4x");
+                        ui.selectable_value(&mut settings.msaa_samples, 8, "8x");
+                    });
+                ui.end_row();
+                
+                ui.label("VSync:");
+                ui.checkbox(&mut settings.vsync, "");
+                ui.end_row();
+                
+                ui.label("Field of View:");
+                ui.add(egui::Slider::new(&mut settings.fov, 30.0..=120.0)
+                    .suffix("°"));
+                ui.end_row();
+                
+                ui.label("Camera Speed:");
+                ui.add(egui::Slider::new(&mut settings.camera_speed, 0.1..=5.0));
+                ui.end_row();
+            });
+    }
+    
+    /// Show jog settings
+    fn show_jog_settings(ui: &mut egui::Ui, settings: &mut crate::settings::JogSettings) {
+        ui.heading("Jog Settings");
+        ui.add_space(5.0);
+        
+        egui::Grid::new("jog_settings_grid")
+            .num_columns(2)
+            .spacing([10.0, 8.0])
+            .show(ui, |ui| {
+                ui.label("XY Feed Rate:");
+                ui.add(egui::DragValue::new(&mut settings.xy_feed_rate)
+                    .speed(10.0)
+                    .clamp_range(1.0..=10000.0)
+                    .suffix(" mm/min"));
+                ui.end_row();
+                
+                ui.label("Z Feed Rate:");
+                ui.add(egui::DragValue::new(&mut settings.z_feed_rate)
+                    .speed(10.0)
+                    .clamp_range(1.0..=5000.0)
+                    .suffix(" mm/min"));
+                ui.end_row();
+                
+                ui.label("Continuous Mode:");
+                ui.checkbox(&mut settings.continuous_mode, "");
+                ui.end_row();
+            });
+        
+        ui.add_space(10.0);
+        ui.label("Step Sizes:");
+        
+        // Show step sizes as editable list
+        let mut i = 0;
+        while i < settings.step_sizes.len() {
+            ui.horizontal(|ui| {
+                ui.add(egui::DragValue::new(&mut settings.step_sizes[i])
+                    .speed(0.1)
+                    .clamp_range(0.001..=1000.0));
+                
+                if ui.button("🗑").clicked() {
+                    settings.step_sizes.remove(i);
+                    if settings.default_step_index >= settings.step_sizes.len() {
+                        settings.default_step_index = settings.step_sizes.len().saturating_sub(1);
+                    }
+                } else {
+                    i += 1;
+                }
+            });
+        }
+        
+        if ui.button("➕ Add Step Size").clicked() {
+            settings.step_sizes.push(1.0);
+        }
+    }
+    
+    /// Show UI settings
+    fn show_ui_settings(ui: &mut egui::Ui, settings: &mut crate::settings::UiSettings) {
+        ui.heading("UI Settings");
+        ui.add_space(5.0);
+        
+        egui::Grid::new("ui_settings_grid")
+            .num_columns(2)
+            .spacing([10.0, 8.0])
+            .show(ui, |ui| {
+                ui.label("Dark Mode:");
+                ui.checkbox(&mut settings.dark_mode, "");
+                ui.end_row();
+                
+                ui.label("Font Size:");
+                ui.add(egui::Slider::new(&mut settings.font_size, 8.0..=24.0));
+                ui.end_row();
+                
+                ui.label("Show Console:");
+                ui.checkbox(&mut settings.show_console, "");
+                ui.end_row();
+                
+                ui.label("Show State Panel:");
+                ui.checkbox(&mut settings.show_state, "");
+                ui.end_row();
+                
+                ui.label("Show Control Panel:");
+                ui.checkbox(&mut settings.show_control, "");
+                ui.end_row();
+                
+                ui.label("Console History Limit:");
+                ui.add(egui::DragValue::new(&mut settings.console_history_limit)
+                    .speed(10)
+                    .clamp_range(100..=10000));
+                ui.end_row();
+            });
+    }
 }
 
 impl eframe::App for RCandleApp {
@@ -883,6 +1220,14 @@ impl eframe::App for RCandleApp {
                     }
                     ui.separator();
                     if ui.checkbox(&mut self.show_console, "📟 Show Console").clicked() {
+                        ui.close_menu();
+                    }
+                });
+                
+                ui.menu_button("Tools", |ui| {
+                    if ui.button("⚙ Settings...").clicked() {
+                        self.show_settings_dialog = true;
+                        self.temp_settings = Some(self.settings.clone());
                         ui.close_menu();
                     }
                 });
@@ -1472,6 +1817,11 @@ impl eframe::App for RCandleApp {
                 );
             }
         });
+        
+        // Settings dialog
+        if self.show_settings_dialog {
+            self.show_settings_window(ctx);
+        }
     }
 
     fn save(&mut self, _storage: &mut dyn eframe::Storage) {
