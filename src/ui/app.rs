@@ -4,7 +4,7 @@ use crate::{
     parser::{Parser, Preprocessor, Tokenizer},
     settings::Settings,
     state::AppState,
-    ui::widgets::GCodeEditor,
+    ui::widgets::{Console, GCodeEditor},
 };
 use std::path::PathBuf;
 
@@ -26,6 +26,10 @@ pub struct RCandleApp {
     preprocessor: Preprocessor,
     /// G-Code editor widget
     gcode_editor: GCodeEditor,
+    /// Console widget
+    console: Console,
+    /// Show console panel
+    show_console: bool,
 }
 
 impl RCandleApp {
@@ -44,6 +48,11 @@ impl RCandleApp {
         // Create G-Code editor
         let gcode_editor = GCodeEditor::new();
         
+        // Create console
+        let mut console = Console::new();
+        console.info("rCandle initialized".to_string());
+        console.info("Ready to connect to GRBL controller".to_string());
+        
         tracing::info!("rCandle UI initialized");
         
         Self {
@@ -55,6 +64,8 @@ impl RCandleApp {
             parser,
             preprocessor,
             gcode_editor,
+            console,
+            show_console: true,
         }
     }
 
@@ -70,6 +81,7 @@ impl RCandleApp {
                     self.gcode_content = content;
                     self.current_file = Some(path.clone());
                     self.status_message = format!("Loaded: {}", path.display());
+                    self.console.info(format!("Loaded file: {}", path.display()));
                     tracing::info!("Loaded G-Code file: {:?}", path);
                     
                     // Parse the G-Code
@@ -77,6 +89,7 @@ impl RCandleApp {
                 }
                 Err(e) => {
                     self.status_message = format!("Error loading file: {}", e);
+                    self.console.error(format!("Failed to load file: {}", e));
                     tracing::error!("Failed to load file {:?}: {}", path, e);
                 }
             }
@@ -88,9 +101,11 @@ impl RCandleApp {
         if let Some(path) = &self.current_file {
             if let Err(e) = std::fs::write(path, &self.gcode_content) {
                 self.status_message = format!("Error saving file: {}", e);
+                self.console.error(format!("Failed to save file: {}", e));
                 tracing::error!("Failed to save file {:?}: {}", path, e);
             } else {
                 self.status_message = format!("Saved: {}", path.display());
+                self.console.info(format!("Saved file: {}", path.display()));
                 tracing::info!("Saved G-Code file: {:?}", path);
             }
         } else {
@@ -106,10 +121,12 @@ impl RCandleApp {
         {
             if let Err(e) = std::fs::write(&path, &self.gcode_content) {
                 self.status_message = format!("Error saving file: {}", e);
+                self.console.error(format!("Failed to save file: {}", e));
                 tracing::error!("Failed to save file {:?}: {}", path, e);
             } else {
                 self.current_file = Some(path.clone());
                 self.status_message = format!("Saved: {}", path.display());
+                self.console.info(format!("Saved file: {}", path.display()));
                 tracing::info!("Saved G-Code file: {:?}", path);
             }
         }
@@ -117,38 +134,48 @@ impl RCandleApp {
 
     /// Parse the current G-Code content
     fn parse_gcode(&mut self) {
+        self.console.info("Parsing G-Code...".to_string());
+        
         // Tokenize
         let mut tokenizer = Tokenizer::new(&self.gcode_content);
         let tokens = match tokenizer.tokenize() {
             Ok(t) => t,
             Err(e) => {
                 self.status_message = format!("Tokenization error: {}", e);
+                self.console.error(format!("Tokenization failed: {}", e));
                 tracing::error!("Failed to tokenize G-Code: {}", e);
                 return;
             }
         };
+        
+        self.console.debug(format!("Tokenized {} tokens", tokens.len()));
 
         // Parse tokens to commands
         let commands = match self.parser.parse_tokens(&tokens) {
             Ok(c) => c,
             Err(e) => {
                 self.status_message = format!("Parse error: {}", e);
+                self.console.error(format!("Parse failed: {}", e));
                 tracing::error!("Failed to parse G-Code: {}", e);
                 return;
             }
         };
+        
+        self.console.debug(format!("Parsed {} commands", commands.len()));
 
         // Generate segments
         let segments = match self.parser.generate_segments(&commands) {
             Ok(s) => s,
             Err(e) => {
                 self.status_message = format!("Segment generation error: {}", e);
+                self.console.error(format!("Segment generation failed: {}", e));
                 tracing::error!("Failed to generate segments: {}", e);
                 return;
             }
         };
 
         let segment_count = segments.len();
+        self.console.info(format!("Generated {} segments", segment_count));
         tracing::info!("Parsed {} segments", segment_count);
         
         // Apply preprocessing
@@ -156,12 +183,14 @@ impl RCandleApp {
             Ok(p) => p,
             Err(e) => {
                 self.status_message = format!("Preprocessing error: {}", e);
+                self.console.error(format!("Preprocessing failed: {}", e));
                 tracing::error!("Failed to preprocess segments: {}", e);
                 return;
             }
         };
         
         let processed_count = processed.len();
+        self.console.info(format!("Preprocessed to {} segments", processed_count));
         tracing::info!("Preprocessed to {} segments", processed_count);
         
         // Update program state with the parsed data
@@ -172,6 +201,25 @@ impl RCandleApp {
             "Parsed {} segments ({} after preprocessing)",
             segment_count, processed_count
         );
+        self.console.info("G-Code parsing complete".to_string());
+    }
+
+    /// Handle console command submission
+    fn handle_console_command(&mut self, command: &str) {
+        let cmd = command.trim();
+        
+        if cmd.is_empty() {
+            return;
+        }
+        
+        // Log the command response (simulate sending to GRBL)
+        self.console.info(format!("Sending command: {}", cmd));
+        
+        // TODO: Send command to GRBL via connection manager
+        // For now, just simulate a response
+        self.console.received("ok".to_string());
+        
+        tracing::info!("Console command: {}", cmd);
     }
 }
 
@@ -240,6 +288,10 @@ impl eframe::App for RCandleApp {
                     }
                     if ui.button("🔍 Zoom to Fit").clicked() {
                         self.status_message = "Zoom to fit (TODO)".to_string();
+                        ui.close_menu();
+                    }
+                    ui.separator();
+                    if ui.checkbox(&mut self.show_console, "📟 Show Console").clicked() {
                         ui.close_menu();
                     }
                 });
@@ -354,6 +406,23 @@ impl eframe::App for RCandleApp {
                 // Use the custom GCodeEditor widget
                 self.gcode_editor.show(ui, &mut self.gcode_content);
             });
+
+        // Console panel (bottom, before central panel)
+        if self.show_console {
+            egui::TopBottomPanel::bottom("console_panel")
+                .default_height(200.0)
+                .resizable(true)
+                .show(ctx, |ui| {
+                    ui.heading("Console");
+                    ui.separator();
+                    
+                    // Show console widget and handle command submission
+                    if let Some(command) = self.console.show(ui) {
+                        // Handle command submission
+                        self.handle_console_command(&command);
+                    }
+                });
+        }
 
         // Central panel - 3D viewport
         egui::CentralPanel::default().show(ctx, |ui| {

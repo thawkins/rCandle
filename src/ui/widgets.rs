@@ -377,3 +377,364 @@ impl GCodeEditor {
         }
     }
 }
+
+/// Log message severity level
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LogLevel {
+    /// Debug messages (verbose)
+    Debug,
+    /// Informational messages
+    Info,
+    /// Warning messages
+    Warning,
+    /// Error messages
+    Error,
+    /// Sent commands (outgoing)
+    Sent,
+    /// Received responses (incoming)
+    Received,
+}
+
+impl LogLevel {
+    /// Get the display color for this log level
+    pub fn color(&self) -> Color32 {
+        match self {
+            LogLevel::Debug => Color32::from_rgb(128, 128, 128),    // Gray
+            LogLevel::Info => Color32::from_rgb(200, 200, 200),     // Light gray
+            LogLevel::Warning => Color32::from_rgb(255, 200, 0),    // Yellow/Orange
+            LogLevel::Error => Color32::from_rgb(255, 80, 80),      // Red
+            LogLevel::Sent => Color32::from_rgb(100, 200, 255),     // Light blue
+            LogLevel::Received => Color32::from_rgb(100, 255, 150), // Light green
+        }
+    }
+
+    /// Get the display prefix for this log level
+    pub fn prefix(&self) -> &str {
+        match self {
+            LogLevel::Debug => "[DEBUG]",
+            LogLevel::Info => "[INFO]",
+            LogLevel::Warning => "[WARN]",
+            LogLevel::Error => "[ERROR]",
+            LogLevel::Sent => ">>>",
+            LogLevel::Received => "<<<",
+        }
+    }
+}
+
+/// A single console message
+#[derive(Debug, Clone)]
+pub struct ConsoleMessage {
+    /// Message timestamp
+    pub timestamp: std::time::SystemTime,
+    /// Message severity level
+    pub level: LogLevel,
+    /// Message text
+    pub text: String,
+}
+
+impl ConsoleMessage {
+    /// Create a new console message
+    pub fn new(level: LogLevel, text: String) -> Self {
+        Self {
+            timestamp: std::time::SystemTime::now(),
+            level,
+            text,
+        }
+    }
+
+    /// Format the timestamp for display
+    pub fn format_timestamp(&self) -> String {
+        use std::time::UNIX_EPOCH;
+        
+        if let Ok(duration) = self.timestamp.duration_since(UNIX_EPOCH) {
+            let secs = duration.as_secs();
+            let hours = (secs / 3600) % 24;
+            let minutes = (secs / 60) % 60;
+            let seconds = secs % 60;
+            let millis = duration.subsec_millis();
+            format!("{:02}:{:02}:{:02}.{:03}", hours, minutes, seconds, millis)
+        } else {
+            "00:00:00.000".to_string()
+        }
+    }
+}
+
+/// Console widget for displaying log messages and command input
+pub struct Console {
+    /// Console messages history
+    messages: Vec<ConsoleMessage>,
+    /// Command input buffer
+    command_input: String,
+    /// Command history (for up/down arrow navigation)
+    command_history: Vec<String>,
+    /// Current position in command history
+    history_index: Option<usize>,
+    /// Maximum number of messages to keep
+    max_messages: usize,
+    /// Auto-scroll to bottom
+    auto_scroll: bool,
+    /// Show timestamps
+    show_timestamps: bool,
+    /// Log level filter
+    filter_level: Option<LogLevel>,
+    /// Whether to show debug messages
+    show_debug: bool,
+    /// Whether to show info messages
+    show_info: bool,
+    /// Whether to show warning messages
+    show_warning: bool,
+    /// Whether to show error messages
+    show_error: bool,
+    /// Whether to show sent messages
+    show_sent: bool,
+    /// Whether to show received messages
+    show_received: bool,
+}
+
+impl Default for Console {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Console {
+    /// Create a new console widget
+    pub fn new() -> Self {
+        Self {
+            messages: Vec::new(),
+            command_input: String::new(),
+            command_history: Vec::new(),
+            history_index: None,
+            max_messages: 1000,
+            auto_scroll: true,
+            show_timestamps: true,
+            filter_level: None,
+            show_debug: false,
+            show_info: true,
+            show_warning: true,
+            show_error: true,
+            show_sent: true,
+            show_received: true,
+        }
+    }
+
+    /// Add a message to the console
+    pub fn add_message(&mut self, level: LogLevel, text: String) {
+        self.messages.push(ConsoleMessage::new(level, text));
+        
+        // Trim to max messages
+        if self.messages.len() > self.max_messages {
+            self.messages.drain(0..self.messages.len() - self.max_messages);
+        }
+    }
+
+    /// Add a debug message
+    pub fn debug(&mut self, text: String) {
+        self.add_message(LogLevel::Debug, text);
+    }
+
+    /// Add an info message
+    pub fn info(&mut self, text: String) {
+        self.add_message(LogLevel::Info, text);
+    }
+
+    /// Add a warning message
+    pub fn warning(&mut self, text: String) {
+        self.add_message(LogLevel::Warning, text);
+    }
+
+    /// Add an error message
+    pub fn error(&mut self, text: String) {
+        self.add_message(LogLevel::Error, text);
+    }
+
+    /// Add a sent command message
+    pub fn sent(&mut self, text: String) {
+        self.add_message(LogLevel::Sent, text);
+    }
+
+    /// Add a received response message
+    pub fn received(&mut self, text: String) {
+        self.add_message(LogLevel::Received, text);
+    }
+
+    /// Clear all messages
+    pub fn clear(&mut self) {
+        self.messages.clear();
+    }
+
+    /// Get the current command input
+    pub fn command_input(&self) -> &str {
+        &self.command_input
+    }
+
+    /// Check if a message should be displayed based on filters
+    fn should_display(&self, message: &ConsoleMessage) -> bool {
+        // Check log level filter
+        if let Some(filter) = self.filter_level {
+            if message.level != filter {
+                return false;
+            }
+        }
+
+        // Check individual level filters
+        match message.level {
+            LogLevel::Debug => self.show_debug,
+            LogLevel::Info => self.show_info,
+            LogLevel::Warning => self.show_warning,
+            LogLevel::Error => self.show_error,
+            LogLevel::Sent => self.show_sent,
+            LogLevel::Received => self.show_received,
+        }
+    }
+
+    /// Show the console widget
+    pub fn show(&mut self, ui: &mut Ui) -> Option<String> {
+        let mut submitted_command = None;
+
+        // Filter controls
+        ui.horizontal(|ui| {
+            ui.label("Show:");
+            ui.checkbox(&mut self.show_debug, "Debug");
+            ui.checkbox(&mut self.show_info, "Info");
+            ui.checkbox(&mut self.show_warning, "Warn");
+            ui.checkbox(&mut self.show_error, "Error");
+            ui.separator();
+            ui.checkbox(&mut self.show_sent, "Sent");
+            ui.checkbox(&mut self.show_received, "Received");
+            ui.separator();
+            ui.checkbox(&mut self.show_timestamps, "Timestamps");
+            ui.checkbox(&mut self.auto_scroll, "Auto-scroll");
+            
+            if ui.button("Clear").clicked() {
+                self.clear();
+            }
+        });
+
+        ui.separator();
+
+        // Console output area
+        let scroll = ScrollArea::vertical()
+            .auto_shrink([false, false])
+            .stick_to_bottom(self.auto_scroll);
+
+        scroll.show(ui, |ui| {
+            ui.vertical(|ui| {
+                for message in &self.messages {
+                    if !self.should_display(message) {
+                        continue;
+                    }
+
+                    ui.horizontal(|ui| {
+                        // Timestamp
+                        if self.show_timestamps {
+                            ui.label(
+                                RichText::new(message.format_timestamp())
+                                    .color(Color32::from_rgb(150, 150, 150))
+                                    .monospace(),
+                            );
+                        }
+
+                        // Level prefix
+                        ui.label(
+                            RichText::new(message.level.prefix())
+                                .color(message.level.color())
+                                .monospace(),
+                        );
+
+                        // Message text
+                        ui.label(RichText::new(&message.text).monospace());
+                    });
+                }
+            });
+        });
+
+        ui.separator();
+
+        // Command input area
+        ui.horizontal(|ui| {
+            ui.label("Command:");
+            
+            let response = ui.add(
+                TextEdit::singleline(&mut self.command_input)
+                    .desired_width(ui.available_width() - 100.0)
+                    .hint_text("Enter command...")
+                    .font(egui::TextStyle::Monospace),
+            );
+
+            // Handle up/down arrow keys for command history
+            if response.has_focus() {
+                if ui.input(|i| i.key_pressed(egui::Key::ArrowUp)) {
+                    if !self.command_history.is_empty() {
+                        match self.history_index {
+                            None => {
+                                // Start at the most recent command
+                                self.history_index = Some(self.command_history.len() - 1);
+                                self.command_input = self.command_history[self.history_index.unwrap()].clone();
+                            }
+                            Some(idx) if idx > 0 => {
+                                // Go to previous command
+                                self.history_index = Some(idx - 1);
+                                self.command_input = self.command_history[self.history_index.unwrap()].clone();
+                            }
+                            _ => {}
+                        }
+                    }
+                } else if ui.input(|i| i.key_pressed(egui::Key::ArrowDown)) {
+                    if let Some(idx) = self.history_index {
+                        if idx < self.command_history.len() - 1 {
+                            // Go to next command
+                            self.history_index = Some(idx + 1);
+                            self.command_input = self.command_history[self.history_index.unwrap()].clone();
+                        } else {
+                            // Clear input (past most recent command)
+                            self.history_index = None;
+                            self.command_input.clear();
+                        }
+                    }
+                } else if ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                    // Submit command
+                    if !self.command_input.trim().is_empty() {
+                        submitted_command = Some(self.command_input.clone());
+                        
+                        // Add to history
+                        self.command_history.push(self.command_input.clone());
+                        
+                        // Trim history to reasonable size
+                        if self.command_history.len() > 100 {
+                            self.command_history.remove(0);
+                        }
+                        
+                        // Log the sent command
+                        self.sent(self.command_input.clone());
+                        
+                        // Clear input
+                        self.command_input.clear();
+                        self.history_index = None;
+                    }
+                }
+            }
+
+            if ui.button("Send").clicked() && !self.command_input.trim().is_empty() {
+                submitted_command = Some(self.command_input.clone());
+                
+                // Add to history
+                self.command_history.push(self.command_input.clone());
+                
+                // Trim history to reasonable size
+                if self.command_history.len() > 100 {
+                    self.command_history.remove(0);
+                }
+                
+                // Log the sent command
+                self.sent(self.command_input.clone());
+                
+                // Clear input
+                self.command_input.clear();
+                self.history_index = None;
+            }
+        });
+
+        submitted_command
+    }
+}

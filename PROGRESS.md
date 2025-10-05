@@ -1,6 +1,6 @@
 # rCandle Development Progress
 
-## Latest Update: Phase 6 UI Framework - G-Code Editor Widget Complete
+## Latest Update: Phase 6 UI Framework - Console Widget Complete
 
 **Date**: January 2025
 **Commit**: TBD
@@ -106,11 +106,60 @@
     - Enter: Find next (when in find field)
   - Location: `src/ui/widgets.rs` (380 lines)
 
+- **Console Widget**: Terminal-style console with command input ✅ NEW!
+  - **LogLevel System**: Categorized message types
+    - Debug: Verbose debugging information (gray)
+    - Info: Informational messages (light gray)
+    - Warning: Warning messages (yellow/orange)
+    - Error: Error messages (red)
+    - Sent: Commands sent to GRBL (light blue)
+    - Received: Responses from GRBL (light green)
+  - **Console Output**:
+    - Scrollable message display with ScrollArea
+    - Auto-scroll to bottom (toggleable)
+    - Timestamp display for each message (HH:MM:SS.mmm format)
+    - Color-coded messages by log level
+    - Monospace font for better readability
+    - Message history up to 1000 messages (configurable)
+  - **Message Filtering**:
+    - Individual toggles for each log level
+    - Show/hide debug, info, warning, error messages
+    - Show/hide sent and received messages separately
+    - Filter controls in toolbar
+  - **Command Input**:
+    - Text input field with Send button
+    - Enter key to submit commands
+    - Monospace font for command input
+    - Command hint text
+  - **Command History**:
+    - Up/Down arrow keys to navigate command history
+    - History stored up to 100 commands
+    - Current position tracking in history
+    - Clear input when past most recent command
+  - **Console Controls**:
+    - Clear button to remove all messages
+    - Auto-scroll toggle
+    - Timestamp toggle
+    - Filter checkboxes
+  - **Console Integration**:
+    - Added to bottom panel (200px height, resizable)
+    - Toggle visibility from View menu
+    - Console logging for all file operations
+    - Console logging for parser stages
+    - Command submission handler (ready for GRBL integration)
+  - **Console Methods**:
+    - `add_message()` - Generic message addition
+    - `debug()`, `info()`, `warning()`, `error()` - Convenience methods
+    - `sent()`, `received()` - Communication logging
+    - `clear()` - Clear all messages
+    - `show()` - Display widget and handle input
+  - Location: `src/ui/widgets.rs` (730+ lines total, ~350 lines for Console)
+
 - **Module Structure**: Organized UI codebase ✅
   - `src/ui/mod.rs` - Module exports
-  - `src/ui/app.rs` - Main application struct (420+ lines)
+  - `src/ui/app.rs` - Main application struct (470+ lines)
   - `src/ui/panels.rs` - Panel components (placeholder)
-  - `src/ui/widgets.rs` - Custom widgets (380 lines)
+  - `src/ui/widgets.rs` - Custom widgets (730+ lines)
   - Clean module organization ready for expansion
 
 - **Main Entry Point**: Updated application launcher ✅
@@ -130,6 +179,7 @@
 - ✅ File dialogs functional
 - ✅ Parser integration working
 - ✅ G-Code editor with syntax highlighting working
+- ✅ Console widget with filtering and history working
 
 ### 🎯 Phase 6 Progress
 
@@ -164,13 +214,24 @@
 - ✅ Line number display
 - ✅ Token-based color coding for all G-Code elements
 
-**Week 12, Day 3: Console Widget** ⏳ NEXT:
-- [ ] Implement console display with egui::ScrollArea
-- [ ] Add auto-scrolling
-- [ ] Implement command input field
-- [ ] Add log filtering (error, warning, info)
-- [ ] Implement command history with up/down arrows
-- [ ] Add timestamp display
+**Week 12, Day 3: Console Widget** ✅ COMPLETED:
+- ✅ Implement console display with egui::ScrollArea
+- ✅ Add auto-scrolling with manual override
+- ✅ Implement command input field with Send button
+- ✅ Add log filtering (debug, info, warning, error, sent, received)
+- ✅ Implement command history with up/down arrows
+- ✅ Add timestamp display (HH:MM:SS.mmm format)
+- ✅ Color-coded message types with prefixes
+- ✅ Console toolbar with filters and controls
+- ✅ Integration with file operations and parser
+- ✅ Command submission handler (ready for GRBL)
+
+**Week 12, Day 4: 3D Viewport Integration** ⏳ NEXT:
+- [ ] WGPU surface integration
+- [ ] Basic camera controls
+- [ ] Grid rendering
+- [ ] Coordinate system display
+- [ ] Tool path visualization
 
 ### 📁 Files Created/Updated
 ```
@@ -178,12 +239,12 @@ src/
 ├── main.rs (updated - launch egui application)
 └── ui/
     ├── mod.rs (updated - export widgets module publicly)
-    ├── app.rs (updated - 420+ lines, integrated GCodeEditor)
+    ├── app.rs (updated - 470+ lines, integrated GCodeEditor and Console)
     ├── panels.rs (placeholder)
-    └── widgets.rs (updated - 380 lines, complete GCodeEditor widget)
+    └── widgets.rs (updated - 730+ lines, GCodeEditor + Console widgets)
 ```
 
-**Total Lines of Code Added**: ~800 lines (UI Foundation + File Operations + G-Code Editor)
+**Total Lines of Code Added**: ~1,200 lines (UI Foundation + File Operations + G-Code Editor + Console)
 **Framework**: egui 0.27 with eframe and wgpu backend
 
 ### 🎖️ Key Technical Achievements
@@ -201,28 +262,31 @@ src/
 11. **Find Functionality**: Complete find/replace UI with case sensitivity
 12. **Execution Tracking**: Visual indication of currently executing line
 13. **Keyboard Shortcuts**: Standard shortcuts for common operations
-14. **Custom Widgets**: Reusable GCodeEditor widget with clean API
-15. **Viewport Preparation**: Central area ready for 3D WGPU rendering
-16. **Clean Architecture**: Modular UI code structure ready for expansion
+14. **Custom Widgets**: Reusable GCodeEditor and Console widgets with clean API
+15. **Console System**: Terminal-style console with filtering, history, and timestamps
+16. **Log Management**: Multi-level logging with color-coded display
+17. **Command History**: Up/down arrow navigation through command history
+18. **Message Filtering**: Individual toggles for each log level category
+19. **Viewport Preparation**: Central area ready for 3D WGPU rendering
+20. **Clean Architecture**: Modular UI code structure ready for expansion
 
 ### 🚀 Next Steps: Phase 6 Continuation
 
-1. **Console Widget** (Week 12, Day 3)
-   - Terminal-style console output
-   - Command input with history
-   - Log level filtering
-   - Auto-scroll with manual override
-   - Timestamp display
-   - Color-coded message types
-
-2. **3D Viewport Integration** (Week 12, Day 4)
+1. **3D Viewport Integration** (Week 12, Day 4) ⏳ NEXT
    - WGPU surface integration
    - Basic camera controls
    - Grid rendering
    - Coordinate system display
    - Tool path visualization
 
-3. **Control Panels** (Week 12, Day 5)
+2. **Control Panels** (Week 12, Day 5)
+   - WGPU surface integration
+   - Basic camera controls
+   - Grid rendering
+   - Coordinate system display
+   - Tool path visualization
+
+2. **Control Panels** (Week 12, Day 5)
    - Enhanced jog controls with button grid
    - Spindle speed control with slider
    - Feed rate override
@@ -236,9 +300,9 @@ src/
 **Phase 3**: ✅ Complete (Connection Module)
 **Phase 4**: ⬜ Pending (Command Processing) - Can be integrated with UI
 **Phase 5**: ⬜ Pending (3D Visualization) - Will integrate into Phase 6 central panel
-**Phase 6**: 🔄 In Progress (UI Framework - 45% complete - Week 12 Day 1-2 DONE!)
+**Phase 6**: 🔄 In Progress (UI Framework - 55% complete - Week 12 Day 3 DONE!)
 
-**Estimated Completion**: ~42% of total project
+**Estimated Completion**: ~46% of total project
 
 ---
 
