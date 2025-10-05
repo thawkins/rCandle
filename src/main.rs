@@ -23,7 +23,6 @@ fn main() -> anyhow::Result<()> {
             .with_min_inner_size([800.0, 600.0])
             .with_active(true)
             .with_visible(true)
-            .with_focused(true)
             .with_decorations(true)
             .with_resizable(true),
         ..Default::default()

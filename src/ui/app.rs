@@ -634,7 +634,7 @@ impl RCandleApp {
         if let Some(ref manager) = self.connection_manager {
             let manager = Arc::clone(manager);
             tokio::spawn(async move {
-                let mut mgr = manager.lock().await;
+                let mgr = manager.lock().await;
                 if let Err(e) = mgr.send_realtime(byte).await {
                     tracing::error!("Failed to send real-time command: {}", e);
                 }
@@ -1325,7 +1325,7 @@ impl RCandleApp {
                 ui.label("Console History Limit:");
                 ui.add(egui::DragValue::new(&mut settings.console_history_limit)
                     .speed(10)
-                    .clamp_range(100..=10000));
+                    .range(100..=10000));
                 ui.end_row();
             });
     }
