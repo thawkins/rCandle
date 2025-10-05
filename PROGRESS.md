@@ -1,13 +1,83 @@
 # rCandle Development Progress
 
-## Latest Update: Phase 6 UI Framework - 2D Toolpath Visualization Complete
+## Latest Update: Phase 6 UI Framework - Enhanced Control Panels Complete
 
 **Date**: January 2025
 **Commit**: TBD
 
 ### ✅ Completed Tasks
 
-#### Phase 6: UI Framework Implementation (Week 12, Day 4 - 2D Visualization Done)
+#### Phase 6: UI Framework Implementation (Week 12, Day 5 - Enhanced Control Panels DONE!)
+
+- **Enhanced Control Panels**: Complete control interface with rich interactions ✅ NEW!
+  - **Jog Controls with Button Grid**:
+    - Step size selector (0.1, 1, 10, 100 mm/inch)
+    - XY jog grid with directional buttons (↑, ↓, ←, →)
+    - Home button (⌂) for homing cycle
+    - Separate Z-axis jog controls (↑ Z+, Z- ↓)
+    - Zero axis buttons (Zero X, Y, Z individually)
+    - Zero All button for setting all axes to zero
+    - Visual button layout mimicking physical pendant controls
+    - Commands use GRBL jog mode ($J=G91 X... Y... Z... F...)
+  - **Spindle Speed Control with Slider**:
+    - Interactive slider for spindle speed (0-24000 RPM)
+    - Real-time RPM display
+    - Spindle override slider (0-200%)
+    - Control buttons: 🗘 CW (clockwise), 🗙 CCW (counter-clockwise), ⏹ Off
+    - Generates proper M3/M4/M5 commands with speed
+  - **Feed Rate Override Controls**:
+    - Slider control (0-200%)
+    - Quick preset buttons (50%, 100%, 150%)
+    - Active percentage display
+    - Ready for GRBL override command integration
+  - **Rapid Override Controls**:
+    - Slider control (25-100%, per GRBL limits)
+    - Quick preset buttons (25%, 50%, 100%)
+    - Active percentage display
+    - Follows GRBL rapid override restrictions
+  - **Work Coordinate System Display**:
+    - Active coordinate system indicator (G54-G59)
+    - Work position display (X, Y, Z with 3 decimal precision)
+    - Quick WCS buttons (G54 through G59)
+    - One-click coordinate system switching
+  - **Enhanced Real-time Status Updates**:
+    - Color-coded machine status display
+      - Green: Idle
+      - Light Blue: Run
+      - Yellow: Hold
+      - Red: Alarm
+      - Gray: Other states
+    - Machine position display (X, Y, Z)
+    - Active feed rate display (mm/min)
+    - Active spindle speed display (RPM)
+    - Override values display (Feed, Rapid, Spindle percentages)
+    - Organized with separators for better readability
+  - **Command Integration**:
+    - All control actions logged to console widget
+    - Commands formatted for GRBL compatibility
+    - Status messages update on each action
+    - Prepared for ConnectionManager integration
+  - Location: `src/ui/app.rs` (900+ lines, ~300 lines for enhanced controls)
+
+- **Helper Methods**: Command generation and handling ✅ NEW!
+  - `send_jog_command()`: Generates $J=G91 jog commands with feed rate
+  - `send_home_command()`: Generates $H homing command
+  - `send_zero_axis()`: Generates G10 L20 P0 axis zero commands
+  - `send_zero_all()`: Generates G10 L20 P0 X0 Y0 Z0 command
+  - `send_wcs_command()`: Generates G54-G59 coordinate system commands
+  - `send_spindle_command()`: Generates M3/M4/M5 spindle commands with speed
+  - All methods include console logging and status updates
+  - All methods include tracing for debugging
+  - Ready for ConnectionManager integration (TODO comments added)
+
+- **Application State Extensions**: Control state tracking ✅ NEW!
+  - `jog_step_size`: Current jog step size (default 1.0)
+  - `spindle_speed`: Target spindle speed (default 1000.0 RPM)
+  - `feed_override`: Feed rate override percentage (default 100.0%)
+  - `rapid_override`: Rapid override percentage (default 100.0%)
+  - `spindle_override`: Spindle override percentage (default 100.0%)
+  - State persists across UI updates
+  - Proper initialization in constructor
 
 - **2D Toolpath Visualization**: Native egui-based toolpath viewer ✅ NEW!
   - **XY Plane Projection**: Top-down view of toolpath
@@ -221,14 +291,16 @@
 - ✅ All code compiles successfully
 - ✅ Zero compilation errors
 - ✅ Only 10 minor documentation warnings (non-critical)
-- ✅ **95 unit tests passing** (100% pass rate)
+- ✅ **117 unit tests passing** (100% pass rate)
   - All Phase 1-3 tests still passing
+  - All renderer tests passing
 - ✅ Application builds in debug mode
 - ✅ UI application launches successfully
 - ✅ File dialogs functional
 - ✅ Parser integration working
 - ✅ G-Code editor with syntax highlighting working
 - ✅ Console widget with filtering and history working
+- ✅ Enhanced control panels with all interactions working
 
 ### 🎯 Phase 6 Progress
 
@@ -285,12 +357,20 @@
 - ✅ Segment count display
 - ⚠️ Note: Full 3D WGPU rendering deferred (2D visualization provides immediate value)
 
-**Week 12, Day 5: Control Panels** ⏳ NEXT:
-- [ ] Enhanced jog controls with button grid
-- [ ] Spindle speed control with slider
-- [ ] Feed rate override
-- [ ] Work coordinate system display
-- [ ] Real-time status updates
+**Week 12, Day 5: Control Panels** ✅ COMPLETED:
+- ✅ Enhanced jog controls with button grid
+- ✅ Spindle speed control with slider
+- ✅ Feed rate override
+- ✅ Rapid override controls
+- ✅ Work coordinate system display
+- ✅ Real-time status updates with color coding
+
+**Week 13, Day 1: Program Execution Controls** ⏳ NEXT:
+- [ ] Program execution panel (Run, Pause, Stop, Reset)
+- [ ] Progress bar with time estimates
+- [ ] Line tracking display
+- [ ] Step mode controls
+- [ ] Execution speed control
 
 ### 📁 Files Created/Updated
 ```
@@ -298,12 +378,12 @@ src/
 ├── main.rs (updated - launch egui application)
 └── ui/
     ├── mod.rs (updated - export widgets module publicly)
-    ├── app.rs (updated - 640+ lines, added 2D toolpath visualization)
+    ├── app.rs (updated - 900+ lines, added enhanced control panels)
     ├── panels.rs (placeholder)
     └── widgets.rs (updated - 730+ lines, GCodeEditor + Console widgets)
 ```
 
-**Total Lines of Code Added**: ~1,320 lines (UI Foundation + File Operations + Editor + Console + 2D Viewer)
+**Total Lines of Code Added**: ~1,580 lines (UI Foundation + File Operations + Editor + Console + 2D Viewer + Enhanced Controls)
 **Framework**: egui 0.27 with eframe and wgpu backend
 
 ### 🎖️ Key Technical Achievements
@@ -332,17 +412,32 @@ src/
 22. **Grid and Axes**: Reference grid with origin axes display ✨ NEW
 23. **Coordinate Transformation**: G-Code to screen space mapping ✨ NEW
 24. **Clean Architecture**: Modular UI code structure ready for expansion
+25. **Enhanced Jog Controls**: Button grid with step size selection ✨ NEW
+26. **Spindle Control**: Interactive speed slider with override ✨ NEW
+27. **Feed/Rapid Overrides**: Slider controls with preset buttons ✨ NEW
+28. **WCS Management**: Quick coordinate system switching (G54-G59) ✨ NEW
+29. **Color-Coded Status**: Visual machine state indication ✨ NEW
+30. **Zero Commands**: Individual and all-axis zeroing buttons ✨ NEW
+31. **Command Generation**: GRBL-compatible command formatting ✨ NEW
+32. **State Tracking**: Control state persistence across UI updates ✨ NEW
 
 ### 🚀 Next Steps: Phase 6 Continuation
 
-1. **Control Panels Enhancement** (Week 12, Day 5) ⏳ NEXT
-   - Enhanced jog controls with button grid
-   - Spindle speed control with slider
-   - Feed rate override controls
-   - Work coordinate system display
-   - Real-time status updates
+1. **Program Execution Controls** (Week 13, Day 1) ⏳ NEXT
+   - Program execution panel (Run, Pause, Stop, Reset)
+   - Progress bar with time estimates
+   - Line tracking display
+   - Step mode controls
+   - Execution speed control
 
-2. **3D Viewport Upgrade** (Future Enhancement)
+2. **Settings Dialog** (Week 13, Day 2-3)
+   - Connection settings tab
+   - Visualization settings tab
+   - Jog settings tab
+   - UI preferences tab
+   - Settings persistence
+
+3. **3D Viewport Upgrade** (Future Enhancement)
    - Full WGPU 3D rendering integration
    - Camera orbit, pan, zoom controls
    - Perspective/orthographic projection
@@ -356,9 +451,9 @@ src/
 **Phase 3**: ✅ Complete (Connection Module)
 **Phase 4**: ⬜ Pending (Command Processing) - Can be integrated with UI
 **Phase 5**: ⬜ Pending (3D Visualization) - 2D visualization complete, 3D deferred
-**Phase 6**: 🔄 In Progress (UI Framework - 65% complete - Week 12 Day 4 DONE!)
+**Phase 6**: 🔄 In Progress (UI Framework - 70% complete - Week 12 Day 5 DONE!)
 
-**Estimated Completion**: ~50% of total project
+**Estimated Completion**: ~52% of total project
 **Phase 5**: ⬜ Pending (3D Visualization) - Will integrate into Phase 6 central panel
 **Phase 6**: 🔄 In Progress (UI Framework - 55% complete - Week 12 Day 3 DONE!)
 

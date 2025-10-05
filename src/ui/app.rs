@@ -7,7 +7,7 @@ use crate::{
     state::AppState,
     ui::widgets::{Console, GCodeEditor},
 };
-use std::{path::PathBuf, sync::Arc};
+use std::path::PathBuf;
 
 /// Main rCandle application state
 pub struct RCandleApp {
@@ -35,6 +35,16 @@ pub struct RCandleApp {
     renderer: Option<Renderer>,
     /// Parsed segments for rendering
     segments: Vec<Segment>,
+    /// Jog step size (in mm or inches depending on units)
+    jog_step_size: f64,
+    /// Spindle speed (RPM)
+    spindle_speed: f64,
+    /// Feed rate override (percentage, 0-200)
+    feed_override: f64,
+    /// Rapid override (percentage, 25-100)
+    rapid_override: f64,
+    /// Spindle override (percentage, 0-200)
+    spindle_override: f64,
 }
 
 impl RCandleApp {
@@ -82,6 +92,11 @@ impl RCandleApp {
             show_console: true,
             renderer,
             segments: Vec::new(),
+            jog_step_size: 1.0,
+            spindle_speed: 1000.0,
+            feed_override: 100.0,
+            rapid_override: 100.0,
+            spindle_override: 100.0,
         }
     }
 
@@ -242,6 +257,87 @@ impl RCandleApp {
     }
 
     /// Handle console command submission
+    
+    /// Send jog command for manual positioning
+    fn send_jog_command(&mut self, x: f64, y: f64, z: f64) {
+        let feed_rate = if z != 0.0 {
+            self.settings.jog.z_feed_rate
+        } else {
+            self.settings.jog.xy_feed_rate
+        };
+        
+        let command = format!("$J=G91 X{:.3} Y{:.3} Z{:.3} F{:.0}", 
+            x, y, z, feed_rate);
+        self.console.sent(command.clone());
+        self.status_message = format!("Jogging: X{:.3} Y{:.3} Z{:.3}", x, y, z);
+        
+        // TODO: Send to GRBL via connection manager
+        tracing::info!("Jog command: {}", command);
+    }
+    
+    /// Send home command ($H)
+    fn send_home_command(&mut self) {
+        let command = "$H".to_string();
+        self.console.sent(command.clone());
+        self.status_message = "Homing...".to_string();
+        
+        // TODO: Send to GRBL via connection manager
+        tracing::info!("Home command");
+    }
+    
+    /// Zero a specific axis
+    fn send_zero_axis(&mut self, axis: char) {
+        let command = format!("G10 L20 P0 {}0", axis);
+        self.console.sent(command.clone());
+        self.status_message = format!("Zeroing {} axis", axis);
+        
+        // TODO: Send to GRBL via connection manager
+        tracing::info!("Zero axis: {}", axis);
+    }
+    
+    /// Zero all axes
+    fn send_zero_all(&mut self) {
+        let command = "G10 L20 P0 X0 Y0 Z0".to_string();
+        self.console.sent(command.clone());
+        self.status_message = "Zeroing all axes".to_string();
+        
+        // TODO: Send to GRBL via connection manager
+        tracing::info!("Zero all axes");
+    }
+    
+    /// Send work coordinate system command
+    fn send_wcs_command(&mut self, wcs: u32) {
+        let command = format!("G{}", wcs);
+        self.console.sent(command.clone());
+        self.status_message = format!("Switching to G{}", wcs);
+        
+        // TODO: Send to GRBL via connection manager
+        tracing::info!("WCS command: G{}", wcs);
+    }
+    
+    /// Send spindle control command
+    fn send_spindle_command(&mut self, cw: bool, ccw: bool) {
+        let command = if cw {
+            format!("M3 S{:.0}", self.spindle_speed)
+        } else if ccw {
+            format!("M4 S{:.0}", self.spindle_speed)
+        } else {
+            "M5".to_string()
+        };
+        
+        self.console.sent(command.clone());
+        self.status_message = if cw {
+            format!("Spindle CW at {:.0} RPM", self.spindle_speed)
+        } else if ccw {
+            format!("Spindle CCW at {:.0} RPM", self.spindle_speed)
+        } else {
+            "Spindle off".to_string()
+        };
+        
+        // TODO: Send to GRBL via connection manager
+        tracing::info!("Spindle command: {}", command);
+    }
+
     fn handle_console_command(&mut self, command: &str) {
         let cmd = command.trim();
         
@@ -519,39 +615,287 @@ impl eframe::App for RCandleApp {
                 
                 ui.add_space(10.0);
                 
-                // Machine state section
+                // Machine state section - Enhanced real-time display
                 ui.group(|ui| {
                     ui.label("Machine State");
-                    let machine_state = self.app_state.machine.read();
-                    ui.label(format!("Status: {:?}", machine_state.status));
-                    ui.label(format!("Position: X:{:.3} Y:{:.3} Z:{:.3}", 
-                        machine_state.machine_position.x,
-                        machine_state.machine_position.y,
-                        machine_state.machine_position.z));
+                    
+                    // Extract data from machine_state before UI rendering
+                    let (status, machine_pos_x, machine_pos_y, machine_pos_z, 
+                         feed_rate, spindle_speed, feed_override, rapid_override, spindle_override) = {
+                        let machine_state = self.app_state.machine.read();
+                        (
+                            machine_state.status.clone(),
+                            machine_state.machine_position.x,
+                            machine_state.machine_position.y,
+                            machine_state.machine_position.z,
+                            machine_state.feed_rate,
+                            machine_state.spindle_speed,
+                            machine_state.feed_override,
+                            machine_state.rapid_override,
+                            machine_state.spindle_override,
+                        )
+                    };
+                    
+                    // Status with color coding
+                    ui.horizontal(|ui| {
+                        ui.label("Status:");
+                        let status_color = match status {
+                            crate::state::MachineStatus::Idle => egui::Color32::GREEN,
+                            crate::state::MachineStatus::Run => egui::Color32::LIGHT_BLUE,
+                            crate::state::MachineStatus::Hold => egui::Color32::YELLOW,
+                            crate::state::MachineStatus::Alarm => egui::Color32::RED,
+                            _ => egui::Color32::GRAY,
+                        };
+                        ui.colored_label(status_color, format!("{:?}", status));
+                    });
+                    
+                    ui.separator();
+                    
+                    // Machine position
+                    ui.label("Machine Position:");
+                    ui.label(format!("  X: {:.3}", machine_pos_x));
+                    ui.label(format!("  Y: {:.3}", machine_pos_y));
+                    ui.label(format!("  Z: {:.3}", machine_pos_z));
+                    
+                    ui.add_space(3.0);
+                    
+                    // Feed and spindle display
+                    if feed_rate > 0.0 {
+                        ui.label(format!("Feed: {:.0} mm/min", feed_rate));
+                    }
+                    if spindle_speed > 0.0 {
+                        ui.label(format!("Spindle: {:.0} RPM", spindle_speed));
+                    }
+                    
+                    ui.add_space(3.0);
+                    
+                    // Override values
+                    ui.label("Overrides:");
+                    ui.label(format!("  Feed: {:.0}%", feed_override));
+                    ui.label(format!("  Rapid: {:.0}%", rapid_override));
+                    ui.label(format!("  Spindle: {:.0}%", spindle_override));
                 });
                 
                 ui.add_space(10.0);
                 
-                // Jog controls
+                // Jog controls - Enhanced with button grid
                 ui.group(|ui| {
                     ui.label("Jog Controls");
-                    ui.label("(Not implemented yet)");
+                    
+                    // Jog step size selector
+                    ui.horizontal(|ui| {
+                        ui.label("Step:");
+                        if ui.selectable_label(self.jog_step_size == 0.1, "0.1").clicked() {
+                            self.jog_step_size = 0.1;
+                        }
+                        if ui.selectable_label(self.jog_step_size == 1.0, "1").clicked() {
+                            self.jog_step_size = 1.0;
+                        }
+                        if ui.selectable_label(self.jog_step_size == 10.0, "10").clicked() {
+                            self.jog_step_size = 10.0;
+                        }
+                        if ui.selectable_label(self.jog_step_size == 100.0, "100").clicked() {
+                            self.jog_step_size = 100.0;
+                        }
+                    });
+                    
+                    ui.add_space(5.0);
+                    
+                    // XY Jog grid
+                    ui.horizontal(|ui| {
+                        ui.add_space(35.0); // Indent for alignment
+                        if ui.button("↑ Y+").clicked() {
+                            self.send_jog_command(0.0, self.jog_step_size, 0.0);
+                        }
+                    });
+                    
+                    ui.horizontal(|ui| {
+                        if ui.button("← X-").clicked() {
+                            self.send_jog_command(-self.jog_step_size, 0.0, 0.0);
+                        }
+                        if ui.button("⌂ Home").clicked() {
+                            self.send_home_command();
+                        }
+                        if ui.button("X+ →").clicked() {
+                            self.send_jog_command(self.jog_step_size, 0.0, 0.0);
+                        }
+                    });
+                    
+                    ui.horizontal(|ui| {
+                        ui.add_space(35.0); // Indent for alignment
+                        if ui.button("↓ Y-").clicked() {
+                            self.send_jog_command(0.0, -self.jog_step_size, 0.0);
+                        }
+                    });
+                    
+                    ui.add_space(5.0);
+                    
+                    // Z Jog controls
+                    ui.horizontal(|ui| {
+                        ui.label("Z:");
+                        if ui.button("↑ Z+").clicked() {
+                            self.send_jog_command(0.0, 0.0, self.jog_step_size);
+                        }
+                        if ui.button("Z- ↓").clicked() {
+                            self.send_jog_command(0.0, 0.0, -self.jog_step_size);
+                        }
+                    });
+                    
+                    ui.add_space(5.0);
+                    
+                    // Zero buttons
+                    ui.horizontal(|ui| {
+                        if ui.button("Zero X").clicked() {
+                            self.send_zero_axis('X');
+                        }
+                        if ui.button("Zero Y").clicked() {
+                            self.send_zero_axis('Y');
+                        }
+                        if ui.button("Zero Z").clicked() {
+                            self.send_zero_axis('Z');
+                        }
+                    });
+                    
+                    if ui.button("Zero All").clicked() {
+                        self.send_zero_all();
+                    }
                 });
                 
                 ui.add_space(10.0);
                 
-                // Spindle controls
+                // Work coordinate system display
                 ui.group(|ui| {
-                    ui.label("Spindle");
+                    ui.label("Work Coordinates");
+                    
+                    // Extract data from machine_state before closures
+                    let (coord_system, work_pos_x, work_pos_y, work_pos_z) = {
+                        let machine_state = self.app_state.machine.read();
+                        (
+                            machine_state.coordinate_system.clone(),
+                            machine_state.work_position.x,
+                            machine_state.work_position.y,
+                            machine_state.work_position.z,
+                        )
+                    };
+                    
+                    // Display active coordinate system
+                    ui.label(format!("System: {:?}", coord_system));
+                    
+                    // Display work position (with work offsets applied)
+                    ui.label(format!("X: {:.3}", work_pos_x));
+                    ui.label(format!("Y: {:.3}", work_pos_y));
+                    ui.label(format!("Z: {:.3}", work_pos_z));
+                    
+                    ui.add_space(5.0);
+                    
+                    // Quick WCS buttons
                     ui.horizontal(|ui| {
-                        if ui.button("On").clicked() {
-                            self.status_message = "Spindle on".to_string();
-                        }
-                        if ui.button("Off").clicked() {
-                            self.status_message = "Spindle off".to_string();
+                        for i in 54..=59 {
+                            if ui.button(format!("G{}", i)).clicked() {
+                                self.send_wcs_command(i);
+                            }
                         }
                     });
                 });
+                
+                ui.add_space(10.0);
+                
+                // Spindle controls with slider
+                ui.group(|ui| {
+                    ui.label("Spindle");
+                    
+                    // Spindle speed slider
+                    ui.horizontal(|ui| {
+                        ui.label("Speed:");
+                        ui.add(egui::Slider::new(&mut self.spindle_speed, 0.0..=24000.0)
+                            .suffix(" RPM")
+                            .clamp_to_range(true));
+                    });
+                    
+                    ui.label(format!("{:.0} RPM", self.spindle_speed));
+                    
+                    ui.add_space(5.0);
+                    
+                    // Spindle override
+                    ui.horizontal(|ui| {
+                        ui.label("Override:");
+                        ui.add(egui::Slider::new(&mut self.spindle_override, 0.0..=200.0)
+                            .suffix("%")
+                            .clamp_to_range(true));
+                    });
+                    
+                    ui.add_space(5.0);
+                    
+                    // Spindle control buttons
+                    ui.horizontal(|ui| {
+                        if ui.button("🗘 CW").clicked() {
+                            self.send_spindle_command(true, false);
+                        }
+                        if ui.button("🗙 CCW").clicked() {
+                            self.send_spindle_command(false, true);
+                        }
+                        if ui.button("⏹ Off").clicked() {
+                            self.send_spindle_command(false, false);
+                        }
+                    });
+                });
+                
+                ui.add_space(10.0);
+                
+                // Feed rate override
+                ui.group(|ui| {
+                    ui.label("Feed Rate Override");
+                    
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Slider::new(&mut self.feed_override, 0.0..=200.0)
+                            .suffix("%")
+                            .clamp_to_range(true));
+                    });
+                    
+                    // Quick preset buttons
+                    ui.horizontal(|ui| {
+                        if ui.button("50%").clicked() {
+                            self.feed_override = 50.0;
+                        }
+                        if ui.button("100%").clicked() {
+                            self.feed_override = 100.0;
+                        }
+                        if ui.button("150%").clicked() {
+                            self.feed_override = 150.0;
+                        }
+                    });
+                    
+                    ui.label(format!("Active: {:.0}%", self.feed_override));
+                });
+                
+                ui.add_space(10.0);
+                
+                // Rapid override
+                ui.group(|ui| {
+                    ui.label("Rapid Override");
+                    
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Slider::new(&mut self.rapid_override, 25.0..=100.0)
+                            .suffix("%")
+                            .clamp_to_range(true));
+                    });
+                    
+                    // Quick preset buttons
+                    ui.horizontal(|ui| {
+                        if ui.button("25%").clicked() {
+                            self.rapid_override = 25.0;
+                        }
+                        if ui.button("50%").clicked() {
+                            self.rapid_override = 50.0;
+                        }
+                        if ui.button("100%").clicked() {
+                            self.rapid_override = 100.0;
+                        }
+                    });
+                    
+                    ui.label(format!("Active: {:.0}%", self.rapid_override));
+                });
+
             });
 
         // Right panel - G-Code editor/viewer
@@ -587,7 +931,7 @@ impl eframe::App for RCandleApp {
             ui.heading("Toolpath Viewer");
             
             let available_size = ui.available_size();
-            let (rect, response) = ui.allocate_exact_size(
+            let (rect, _response) = ui.allocate_exact_size(
                 available_size,
                 egui::Sense::click_and_drag()
             );
