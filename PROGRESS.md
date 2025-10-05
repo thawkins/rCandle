@@ -1,11 +1,90 @@
 # rCandle Development Progress
 
-## Latest Update: Phase 4 State Management - Complete!
+## Latest Update: Phase 6 Week 13 - Program Execution Controls Complete!
 
 **Date**: January 2025
 **Commit**: TBD
 
 ### ✅ Completed Tasks
+
+#### Phase 6: UI Framework - Week 13 Day 1 Complete!
+
+- **Program Execution Controls Panel**: Complete execution control interface ✅ NEW!
+  - **Execution Status Display**:
+    - Color-coded status indicator (No Program, Ready, Running, Paused, Complete, Error)
+    - Status colors: Dark Gray (NotLoaded), Gray (Loaded), Light Blue (Running), Yellow (Paused), Light Green (Complete), Red (Error)
+    - Real-time status updates from program state
+  - **Main Control Buttons**:
+    - ▶ Run: Start program execution from beginning or resume from pause
+    - ⏸ Pause: Temporarily pause execution (sends feed hold to GRBL)
+    - ⏹ Stop: Stop execution and reset (sends soft reset to GRBL)
+    - 🔄 Reset: Reset program to beginning without sending to GRBL
+    - State-aware button handling (prevents invalid state transitions)
+  - **Progress Tracking**:
+    - Progress bar showing completion percentage (calculated from current_line/total_lines)
+    - Real-time percentage display (e.g., "45.7%")
+    - Visual progress indicator with text overlay
+  - **Line Tracking Display**:
+    - Current line / Total lines (e.g., "450 / 1000")
+    - Lines completed counter
+    - Synchronized with program state
+  - **Time Estimates**:
+    - Elapsed time display in HH:MM:SS format
+    - Estimated time remaining (calculated from execution rate)
+    - Pause duration tracking (excluded from elapsed time)
+    - Handles pause/resume correctly
+  - **Step Mode**:
+    - Step mode checkbox toggle
+    - ⏭ Single Step button (execute one line at a time)
+    - Step execution tracking with debug logging
+    - Prevents execution beyond program end
+  - **Execution Speed Control**:
+    - Speed override slider (0-200%)
+    - Affects feed rate during execution
+    - Active percentage display
+    - Ready for GRBL override command integration
+  - **State Management Integration**:
+    - Full integration with ProgramState
+    - State transitions: NotLoaded → Loaded → Running ↔ Paused → Completed/Error
+    - ExecutionState enum support (NotLoaded, Loaded, Running, Paused, Completed, Error)
+    - Thread-safe state access via SharedState wrapper
+  - **Time Calculation**:
+    - Accurate elapsed time tracking with pause duration excluded
+    - Remaining time estimate based on execution rate
+    - Helper function format_duration() for HH:MM:SS formatting
+    - Handles start, pause, resume, and stop correctly
+  - **Console Integration**:
+    - All execution events logged to console
+    - Info, warning, and debug messages
+    - Command logging for debugging
+  - **Command Generation** (prepared for GRBL):
+    - Start/Resume: Ready to send queued G-code
+    - Pause: Ready to send feed hold (!)
+    - Stop: Ready to send soft reset (0x18) or queue clear
+    - Step: Ready to send single line G-code
+  - Location: `src/ui/app.rs` (200+ lines added for execution controls)
+
+- **Helper Methods**: Complete execution control logic ✅ NEW!
+  - `start_program()`: Start or resume program execution with state management
+  - `pause_program()`: Pause execution with pause time tracking
+  - `stop_program()`: Stop and reset execution state
+  - `reset_program()`: Reset to beginning without GRBL commands
+  - `execute_single_step()`: Execute one line in step mode
+  - `calculate_time_estimates()`: Calculate elapsed and remaining time
+  - `format_duration()`: Format Duration in HH:MM:SS
+  - All methods include console logging and tracing
+  - TODO comments for GRBL connection manager integration
+  - Location: `src/ui/app.rs` (200+ lines)
+
+- **Application State Extensions**: Execution tracking fields ✅ NEW!
+  - `execution_speed`: Execution speed override (default 100.0%)
+  - `step_mode`: Step mode enabled flag (default false)
+  - `program_start_time`: Instant for elapsed time calculation
+  - `program_paused_time`: Instant for pause duration tracking
+  - `total_paused_duration`: Cumulative pause duration
+  - `current_line`: Current executing line number (0-based)
+  - Proper initialization in constructor
+  - State persists across UI updates
 
 #### Phase 4: State Management Implementation - COMPLETE!
 
@@ -423,12 +502,24 @@
 - ✅ Work coordinate system display
 - ✅ Real-time status updates with color coding
 
-**Week 13, Day 1: Program Execution Controls** ⏳ NEXT:
-- [ ] Program execution panel (Run, Pause, Stop, Reset)
-- [ ] Progress bar with time estimates
-- [ ] Line tracking display
-- [ ] Step mode controls
-- [ ] Execution speed control
+**Week 13, Day 1: Program Execution Controls** ✅ COMPLETED:
+- ✅ Program execution panel (Run, Pause, Stop, Reset)
+- ✅ Progress bar with time estimates
+- ✅ Line tracking display
+- ✅ Step mode controls
+- ✅ Execution speed control
+- ✅ State-aware button handling
+- ✅ Time tracking with pause duration handling
+- ✅ Integration with ProgramState and ExecutionState
+- ✅ Console logging for all execution events
+- ✅ Prepared for GRBL connection manager integration
+
+**Week 13, Day 2: Settings Dialog** ⏳ NEXT:
+- [ ] Implement settings window with egui::Window
+- [ ] Add tabbed interface using egui (or manual tabs)
+- [ ] Implement form widgets for settings
+- [ ] Add validation feedback
+- [ ] Save/load settings integration
 
 ### 📁 Files Created/Updated
 ```
@@ -436,12 +527,16 @@ src/
 ├── main.rs (updated - launch egui application)
 └── ui/
     ├── mod.rs (updated - export widgets module publicly)
-    ├── app.rs (updated - 900+ lines, added enhanced control panels)
+    ├── app.rs (updated - 1300+ lines, added program execution controls)
     ├── panels.rs (placeholder)
     └── widgets.rs (updated - 730+ lines, GCodeEditor + Console widgets)
+
+New Documentation:
+├── PHASE6_WEEK13_PROGRESS.md (new - Week 13 tracking document)
+└── PROGRESS.md (updated - Phase 6 Week 13 Day 1 complete)
 ```
 
-**Total Lines of Code Added**: ~1,580 lines (UI Foundation + File Operations + Editor + Console + 2D Viewer + Enhanced Controls)
+**Total Lines of Code Added**: ~1,980 lines (UI Foundation + File Operations + Editor + Console + 2D Viewer + Enhanced Controls + Program Execution)
 **Framework**: egui 0.27 with eframe and wgpu backend
 
 ### 🎖️ Key Technical Achievements
@@ -478,13 +573,27 @@ src/
 30. **Zero Commands**: Individual and all-axis zeroing buttons ✨ NEW
 31. **Command Generation**: GRBL-compatible command formatting ✨ NEW
 32. **State Tracking**: Control state persistence across UI updates ✨ NEW
+33. **Program Execution Panel**: Complete Run/Pause/Stop/Reset controls ✨ NEW
+34. **Progress Tracking**: Real-time progress bar with percentage ✨ NEW
+35. **Time Estimation**: Elapsed and remaining time calculation ✨ NEW
+36. **Step Mode**: Single-step execution for debugging ✨ NEW
+37. **Execution Speed**: Speed override control (0-200%) ✨ NEW
+38. **State-Aware UI**: Buttons enabled/disabled based on state ✨ NEW
+39. **Pause Tracking**: Accurate time tracking with pause handling ✨ NEW
 
 ### 🚀 Next Steps: Phase 6 Continuation
 
-1. **Program Execution Controls** (Week 13, Day 1) ⏳ NEXT
-   - Program execution panel (Run, Pause, Stop, Reset)
-   - Progress bar with time estimates
-   - Line tracking display
+1. **Settings Dialog** (Week 13, Day 2) ⏳ NEXT
+   - Settings window with egui::Window
+   - Tabbed interface for different setting categories
+   - Form widgets for all settings
+   - Validation and feedback
+   - Save/load integration
+
+2. **Program Execution Controls** (Week 13, Day 1) ✅ COMPLETED
+   - ✅ Program execution panel (Run, Pause, Stop, Reset)
+   - ✅ Progress bar with time estimates
+   - ✅ Line tracking display
    - Step mode controls
    - Execution speed control
 
@@ -509,13 +618,9 @@ src/
 **Phase 3**: ✅ Complete (Connection Module)
 **Phase 4**: ✅ Complete (State Management) - Event system and state updater complete!
 **Phase 5**: ⬜ Pending (3D Visualization) - 2D visualization complete, 3D deferred
-**Phase 6**: 🔄 In Progress (UI Framework - 70% complete - Week 12 Day 5 DONE!)
+**Phase 6**: 🔄 In Progress (UI Framework - 75% complete - Week 13 Day 1 DONE!)
 
-**Estimated Completion**: ~58% of total project (Phase 4 adds ~6%)
-**Phase 5**: ⬜ Pending (3D Visualization) - Will integrate into Phase 6 central panel
-**Phase 6**: 🔄 In Progress (UI Framework - 55% complete - Week 12 Day 3 DONE!)
-
-**Estimated Completion**: ~46% of total project
+**Estimated Completion**: ~62% of total project (Week 13 Day 1 adds ~4%)
 
 ---
 

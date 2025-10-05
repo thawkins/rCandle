@@ -4,7 +4,7 @@ use crate::{
     parser::{Parser, Preprocessor, Segment, SegmentType, Tokenizer},
     renderer::Renderer,
     settings::Settings,
-    state::AppState,
+    state::{AppState, ExecutionState},
     ui::widgets::{Console, GCodeEditor},
 };
 use std::path::PathBuf;
@@ -45,11 +45,28 @@ pub struct RCandleApp {
     rapid_override: f64,
     /// Spindle override (percentage, 0-200)
     spindle_override: f64,
+    /// Program execution speed (percentage, 0-200)
+    execution_speed: f64,
+    /// Step mode enabled
+    step_mode: bool,
+    /// Program start time (for elapsed time calculation)
+    program_start_time: Option<std::time::Instant>,
+    /// Program paused time (for pause duration tracking)
+    program_paused_time: Option<std::time::Instant>,
+    /// Total paused duration
+    total_paused_duration: std::time::Duration,
+    /// Current executing line number (0-based)
+    current_line: usize,
 }
 
 impl RCandleApp {
     /// Create a new rCandle application instance
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        // Configure egui style for better interactivity
+        let mut style = (*cc.egui_ctx.style()).clone();
+        style.interaction.selectable_labels = true;
+        cc.egui_ctx.set_style(style);
+        
         // Load settings
         let settings = Settings::load_or_default();
         
@@ -97,6 +114,12 @@ impl RCandleApp {
             feed_override: 100.0,
             rapid_override: 100.0,
             spindle_override: 100.0,
+            execution_speed: 100.0,
+            step_mode: false,
+            program_start_time: None,
+            program_paused_time: None,
+            total_paused_duration: std::time::Duration::ZERO,
+            current_line: 0,
         }
     }
 
@@ -354,6 +377,191 @@ impl RCandleApp {
         
         tracing::info!("Console command: {}", cmd);
     }
+    
+    /// Start program execution
+    fn start_program(&mut self) {
+        let mut program_state = self.app_state.program.write();
+        
+        // Check if we have a program loaded
+        if program_state.total_lines == 0 {
+            self.console.warning("No program loaded".to_string());
+            drop(program_state);
+            self.status_message = "No program loaded".to_string();
+            return;
+        }
+        
+        // Start or resume execution
+        match program_state.state {
+            ExecutionState::NotLoaded => {
+                self.console.warning("No program loaded".to_string());
+                drop(program_state);
+                return;
+            }
+            ExecutionState::Loaded | ExecutionState::Completed => {
+                // Start from beginning
+                program_state.state = ExecutionState::Running;
+                program_state.current_line = 0;
+                program_state.lines_sent = 0;
+                program_state.lines_completed = 0;
+                self.current_line = 0;
+                self.program_start_time = Some(std::time::Instant::now());
+                self.total_paused_duration = std::time::Duration::ZERO;
+                self.console.info("Program started".to_string());
+                self.status_message = "Program started".to_string();
+                tracing::info!("Program execution started");
+            }
+            ExecutionState::Paused => {
+                // Resume from pause
+                program_state.state = ExecutionState::Running;
+                if let Some(paused_time) = self.program_paused_time.take() {
+                    self.total_paused_duration += paused_time.elapsed();
+                }
+                self.console.info("Program resumed".to_string());
+                self.status_message = "Program resumed".to_string();
+                tracing::info!("Program execution resumed");
+            }
+            ExecutionState::Running => {
+                self.console.warning("Program already running".to_string());
+            }
+            ExecutionState::Error => {
+                self.console.warning("Cannot start - program in error state. Reset first.".to_string());
+            }
+        }
+        
+        drop(program_state);
+        
+        // TODO: Send to GRBL via connection manager
+    }
+    
+    /// Pause program execution
+    fn pause_program(&mut self) {
+        let mut program_state = self.app_state.program.write();
+        
+        if matches!(program_state.state, ExecutionState::Running) {
+            program_state.state = ExecutionState::Paused;
+            self.program_paused_time = Some(std::time::Instant::now());
+            self.console.info("Program paused".to_string());
+            self.status_message = "Program paused".to_string();
+            tracing::info!("Program execution paused");
+            
+            // TODO: Send pause command to GRBL (feed hold)
+        } else {
+            self.console.warning("Program is not running".to_string());
+        }
+        
+        drop(program_state);
+    }
+    
+    /// Stop program execution
+    fn stop_program(&mut self) {
+        let mut program_state = self.app_state.program.write();
+        
+        if !matches!(program_state.state, ExecutionState::Loaded) {
+            program_state.state = ExecutionState::Loaded;
+            self.program_start_time = None;
+            self.program_paused_time = None;
+            self.total_paused_duration = std::time::Duration::ZERO;
+            self.console.warning("Program stopped".to_string());
+            self.status_message = "Program stopped".to_string();
+            tracing::info!("Program execution stopped");
+            
+            // TODO: Send stop command to GRBL (soft reset or queue clear)
+        } else {
+            self.console.warning("Program is not running".to_string());
+        }
+        
+        drop(program_state);
+    }
+    
+    /// Reset program to beginning
+    fn reset_program(&mut self) {
+        let mut program_state = self.app_state.program.write();
+        
+        program_state.state = ExecutionState::Loaded;
+        program_state.current_line = 0;
+        program_state.lines_sent = 0;
+        program_state.lines_completed = 0;
+        self.current_line = 0;
+        self.program_start_time = None;
+        self.program_paused_time = None;
+        self.total_paused_duration = std::time::Duration::ZERO;
+        
+        self.console.info("Program reset".to_string());
+        self.status_message = "Program reset".to_string();
+        tracing::info!("Program reset to beginning");
+        
+        drop(program_state);
+    }
+    
+    /// Execute a single step in step mode
+    fn execute_single_step(&mut self) {
+        let mut program_state = self.app_state.program.write();
+        
+        // Check if we're in a valid state to step
+        if program_state.total_lines == 0 {
+            self.console.warning("No program loaded".to_string());
+            drop(program_state);
+            return;
+        }
+        
+        if self.current_line >= program_state.total_lines {
+            self.console.info("End of program reached".to_string());
+            program_state.state = ExecutionState::Completed;
+            drop(program_state);
+            return;
+        }
+        
+        // Execute next line
+        self.current_line += 1;
+        program_state.current_line = self.current_line;
+        program_state.lines_completed = self.current_line;
+        
+        self.console.debug(format!("Step: executing line {}", self.current_line));
+        tracing::debug!("Step mode: executing line {}", self.current_line);
+        
+        // TODO: Send single line to GRBL
+        
+        drop(program_state);
+    }
+    
+    /// Calculate time estimates for program execution
+    fn calculate_time_estimates(&self) -> (String, String) {
+        let program_state = self.app_state.program.read();
+        
+        // Calculate elapsed time
+        let elapsed = if let Some(start_time) = self.program_start_time {
+            let total_elapsed = start_time.elapsed();
+            let active_elapsed = if let Some(paused_time) = self.program_paused_time {
+                // Currently paused - subtract pause duration
+                total_elapsed - self.total_paused_duration - paused_time.elapsed()
+            } else {
+                // Not paused - just subtract total paused duration
+                total_elapsed - self.total_paused_duration
+            };
+            active_elapsed
+        } else {
+            std::time::Duration::ZERO
+        };
+        
+        let elapsed_text = format_duration(elapsed);
+        
+        // Calculate remaining time estimate
+        let remaining_text = if self.current_line > 0 && program_state.total_lines > self.current_line {
+            let progress = self.current_line as f64 / program_state.total_lines as f64;
+            let estimated_total = elapsed.as_secs_f64() / progress;
+            let remaining_secs = estimated_total - elapsed.as_secs_f64();
+            let remaining = std::time::Duration::from_secs_f64(remaining_secs.max(0.0));
+            format_duration(remaining)
+        } else if matches!(program_state.state, ExecutionState::Completed) {
+            "Complete".to_string()
+        } else {
+            "--:--:--".to_string()
+        };
+        
+        drop(program_state);
+        
+        (elapsed_text, remaining_text)
+    }
 
     /// Draw toolpath in 2D (XY plane projection)
     fn draw_toolpath_2d(&self, ui: &mut egui::Ui, rect: egui::Rect) {
@@ -605,10 +813,14 @@ impl eframe::App for RCandleApp {
                     ui.label("Connection");
                     ui.horizontal(|ui| {
                         if ui.button("Connect").clicked() {
+                            tracing::info!("Connect button clicked");
                             self.status_message = "Connecting...".to_string();
+                            self.console.info("Connect button clicked".to_string());
                         }
                         if ui.button("Disconnect").clicked() {
+                            tracing::info!("Disconnect button clicked");
                             self.status_message = "Disconnected".to_string();
+                            self.console.info("Disconnect button clicked".to_string());
                         }
                     });
                 });
@@ -895,6 +1107,137 @@ impl eframe::App for RCandleApp {
                     
                     ui.label(format!("Active: {:.0}%", self.rapid_override));
                 });
+                
+                ui.add_space(10.0);
+                
+                // Program execution controls
+                ui.group(|ui| {
+                    ui.heading("Program Execution");
+                    
+                    // Status indicator with color
+                    let program_state = self.app_state.program.read();
+                    let status_text = match program_state.state {
+                        ExecutionState::NotLoaded => "No Program",
+                        ExecutionState::Loaded => "Ready",
+                        ExecutionState::Running => "Running",
+                        ExecutionState::Paused => "Paused",
+                        ExecutionState::Completed => "Complete",
+                        ExecutionState::Error => "Error",
+                    };
+                    
+                    let status_color = match program_state.state {
+                        ExecutionState::NotLoaded => egui::Color32::DARK_GRAY,
+                        ExecutionState::Loaded => egui::Color32::GRAY,
+                        ExecutionState::Running => egui::Color32::LIGHT_BLUE,
+                        ExecutionState::Paused => egui::Color32::YELLOW,
+                        ExecutionState::Completed => egui::Color32::LIGHT_GREEN,
+                        ExecutionState::Error => egui::Color32::RED,
+                    };
+                    
+                    ui.horizontal(|ui| {
+                        ui.label("Status:");
+                        ui.colored_label(status_color, status_text);
+                    });
+                    
+                    drop(program_state);
+                    
+                    ui.add_space(5.0);
+                    ui.separator();
+                    ui.add_space(5.0);
+                    
+                    // Main control buttons in a grid
+                    ui.horizontal(|ui| {
+                        if ui.button("▶ Run").clicked() {
+                            self.start_program();
+                        }
+                        if ui.button("⏸ Pause").clicked() {
+                            self.pause_program();
+                        }
+                        if ui.button("⏹ Stop").clicked() {
+                            self.stop_program();
+                        }
+                        if ui.button("🔄 Reset").clicked() {
+                            self.reset_program();
+                        }
+                    });
+                    
+                    ui.add_space(5.0);
+                    
+                    // Progress bar
+                    let program_state = self.app_state.program.read();
+                    let progress_percent = if program_state.total_lines > 0 {
+                        (program_state.current_line as f64 / program_state.total_lines as f64) * 100.0
+                    } else {
+                        0.0
+                    };
+                    let progress = progress_percent / 100.0;
+                    let progress_text = format!("{:.1}%", progress_percent);
+                    drop(program_state);
+                    
+                    ui.horizontal(|ui| {
+                        ui.label("Progress:");
+                        ui.add(egui::ProgressBar::new(progress as f32).text(progress_text));
+                    });
+                    
+                    ui.add_space(5.0);
+                    
+                    // Line tracking
+                    let program_state = self.app_state.program.read();
+                    let total_lines = program_state.total_lines;
+                    drop(program_state);
+                    
+                    ui.horizontal(|ui| {
+                        ui.label("Line:");
+                        ui.label(format!("{} / {}", self.current_line + 1, total_lines));
+                    });
+                    
+                    ui.horizontal(|ui| {
+                        ui.label("Completed:");
+                        ui.label(format!("{}", self.current_line));
+                    });
+                    
+                    ui.add_space(5.0);
+                    ui.separator();
+                    ui.add_space(5.0);
+                    
+                    // Time tracking
+                    let (elapsed_text, remaining_text) = self.calculate_time_estimates();
+                    
+                    ui.horizontal(|ui| {
+                        ui.label("Elapsed:");
+                        ui.label(elapsed_text);
+                    });
+                    
+                    ui.horizontal(|ui| {
+                        ui.label("Remaining:");
+                        ui.label(remaining_text);
+                    });
+                    
+                    ui.add_space(5.0);
+                    ui.separator();
+                    ui.add_space(5.0);
+                    
+                    // Step mode controls
+                    ui.checkbox(&mut self.step_mode, "Step Mode");
+                    
+                    if self.step_mode {
+                        if ui.button("⏭ Single Step").clicked() {
+                            self.execute_single_step();
+                        }
+                    }
+                    
+                    ui.add_space(5.0);
+                    
+                    // Execution speed override
+                    ui.horizontal(|ui| {
+                        ui.label("Speed:");
+                        ui.add(egui::Slider::new(&mut self.execution_speed, 0.0..=200.0)
+                            .suffix("%")
+                            .clamp_to_range(true));
+                    });
+                    
+                    ui.label(format!("Active: {:.0}%", self.execution_speed));
+                });
 
             });
 
@@ -931,9 +1274,10 @@ impl eframe::App for RCandleApp {
             ui.heading("Toolpath Viewer");
             
             let available_size = ui.available_size();
+            // Use hover sense instead of click_and_drag to avoid consuming events
             let (rect, _response) = ui.allocate_exact_size(
                 available_size,
-                egui::Sense::click_and_drag()
+                egui::Sense::hover()
             );
             
             // Draw background
@@ -980,4 +1324,13 @@ impl eframe::App for RCandleApp {
             tracing::error!("Failed to save settings: {}", e);
         }
     }
+}
+
+/// Format a duration in HH:MM:SS format
+fn format_duration(duration: std::time::Duration) -> String {
+    let total_secs = duration.as_secs();
+    let hours = total_secs / 3600;
+    let minutes = (total_secs % 3600) / 60;
+    let seconds = total_secs % 60;
+    format!("{:02}:{:02}:{:02}", hours, minutes, seconds)
 }

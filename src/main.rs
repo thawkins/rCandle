@@ -20,7 +20,9 @@ fn main() -> anyhow::Result<()> {
         viewport: egui::ViewportBuilder::default()
             .with_title("rCandle - GRBL Controller")
             .with_inner_size([1280.0, 800.0])
-            .with_min_inner_size([800.0, 600.0]),
+            .with_min_inner_size([800.0, 600.0])
+            .with_active(true)
+            .with_visible(true),
         ..Default::default()
     };
 
