@@ -1,6 +1,8 @@
 //! Main application structure for rCandle
 
 use crate::{
+    connection::{ConnectionManager, ConnectionManagerConfig, SerialConnection},
+    grbl::{CommandQueue, GrblCommand},
     parser::{Parser, Preprocessor, Segment, SegmentType, Tokenizer},
     renderer::Renderer,
     settings::Settings,
@@ -8,6 +10,9 @@ use crate::{
     ui::widgets::{Console, GCodeEditor},
 };
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::Mutex as TokioMutex;
 
 /// Main rCandle application state
 pub struct RCandleApp {
@@ -57,6 +62,14 @@ pub struct RCandleApp {
     total_paused_duration: std::time::Duration,
     /// Current executing line number (0-based)
     current_line: usize,
+    /// Connection manager (wrapped in Arc<TokioMutex> for async access)
+    connection_manager: Option<Arc<TokioMutex<ConnectionManager>>>,
+    /// Command queue for GRBL
+    command_queue: Arc<TokioMutex<CommandQueue>>,
+    /// Selected serial port for connection
+    selected_port: String,
+    /// Available serial ports
+    available_ports: Vec<String>,
 }
 
 impl RCandleApp {
@@ -96,6 +109,15 @@ impl RCandleApp {
         
         tracing::info!("rCandle UI initialized");
         
+        // Initialize command queue
+        let command_queue = Arc::new(TokioMutex::new(CommandQueue::new()));
+        
+        // Get available serial ports
+        let available_ports = SerialConnection::list_ports()
+            .ok()
+            .map(|ports| ports.iter().map(|p| p.port_name.clone()).collect())
+            .unwrap_or_else(Vec::new);
+        
         Self {
             settings,
             app_state,
@@ -120,6 +142,10 @@ impl RCandleApp {
             program_paused_time: None,
             total_paused_duration: std::time::Duration::ZERO,
             current_line: 0,
+            connection_manager: None,
+            command_queue,
+            selected_port: available_ports.first().cloned().unwrap_or_default(),
+            available_ports,
         }
     }
 
@@ -279,6 +305,95 @@ impl RCandleApp {
         self.console.info("G-Code parsing complete".to_string());
     }
 
+    /// Refresh list of available serial ports
+    fn refresh_ports(&mut self) {
+        self.available_ports = SerialConnection::list_ports()
+            .ok()
+            .map(|ports| ports.iter().map(|p| p.port_name.clone()).collect())
+            .unwrap_or_else(Vec::new);
+        
+        if !self.available_ports.is_empty() && !self.available_ports.contains(&self.selected_port) {
+            self.selected_port = self.available_ports[0].clone();
+        }
+        
+        self.console.info(format!("Found {} serial port(s)", self.available_ports.len()));
+    }
+
+    /// Connect to GRBL controller
+    fn connect_to_grbl(&mut self, ctx: &egui::Context) {
+        if self.selected_port.is_empty() {
+            self.status_message = "No port selected".to_string();
+            self.console.error("Cannot connect: no port selected".to_string());
+            return;
+        }
+        
+        self.status_message = format!("Connecting to {}...", self.selected_port);
+        self.console.info(format!("Attempting to connect to {}", self.selected_port));
+        
+        // Clone data needed for async operation
+        let port = self.selected_port.clone();
+        let ctx = ctx.clone();
+        let app_state = self.app_state.clone();
+        
+        // Spawn connection task
+        tokio::spawn(async move {
+            let serial_conn = SerialConnection::new(port.clone(), 115200);
+            let config = ConnectionManagerConfig::default();
+            let mut manager = ConnectionManager::with_config(Box::new(serial_conn), config);
+            
+            match manager.connect(Duration::from_secs(5)).await {
+                Ok(()) => {
+                    tracing::info!("Successfully connected to {}", port);
+                    *app_state.connected.write() = true;
+                    // TODO: Store the manager for later use
+                }
+                Err(e) => {
+                    tracing::error!("Connection failed: {}", e);
+                }
+            }
+            ctx.request_repaint();
+        });
+    }
+
+    /// Disconnect from GRBL controller
+    fn disconnect_from_grbl(&mut self) {
+        if let Some(manager) = self.connection_manager.take() {
+            self.status_message = "Disconnecting...".to_string();
+            self.console.info("Disconnecting from controller".to_string());
+            
+            // Spawn disconnect task
+            tokio::spawn(async move {
+                let mut mgr = manager.lock().await;
+                if let Err(e) = mgr.disconnect().await {
+                    tracing::error!("Error during disconnect: {}", e);
+                }
+            });
+            
+            *self.app_state.connected.write() = false;
+            self.status_message = "Disconnected".to_string();
+            self.console.info("Disconnected".to_string());
+        }
+    }
+
+    /// Send a command to GRBL
+    fn send_command(&mut self, command: GrblCommand) {
+        if self.connection_manager.is_none() {
+            self.console.error("Not connected to controller".to_string());
+            return;
+        }
+        
+        let command_str = command.format();
+        self.console.sent(command_str.trim().to_string());
+        
+        let queue = Arc::clone(&self.command_queue);
+        tokio::spawn(async move {
+            let q = queue.lock().await;
+            if let Err(e) = q.enqueue(command).await {
+                tracing::error!("Failed to enqueue command: {}", e);
+            }
+        });
+    }
+
     /// Handle console command submission
     
     /// Send jog command for manual positioning
@@ -289,42 +404,41 @@ impl RCandleApp {
             self.settings.jog.xy_feed_rate
         };
         
-        let command = format!("$J=G91 X{:.3} Y{:.3} Z{:.3} F{:.0}", 
-            x, y, z, feed_rate);
-        self.console.sent(command.clone());
-        self.status_message = format!("Jogging: X{:.3} Y{:.3} Z{:.3}", x, y, z);
+        let command = GrblCommand::Jog {
+            x: if x != 0.0 { Some(x) } else { None },
+            y: if y != 0.0 { Some(y) } else { None },
+            z: if z != 0.0 { Some(z) } else { None },
+            feed_rate,
+        };
         
-        // TODO: Send to GRBL via connection manager
-        tracing::info!("Jog command: {}", command);
+        self.send_command(command);
+        self.status_message = format!("Jogging: X{:.3} Y{:.3} Z{:.3}", x, y, z);
+        tracing::info!("Jog command: X{:.3} Y{:.3} Z{:.3}", x, y, z);
     }
     
     /// Send home command ($H)
     fn send_home_command(&mut self) {
-        let command = "$H".to_string();
-        self.console.sent(command.clone());
+        let command = GrblCommand::HomingCycle;
+        self.send_command(command);
         self.status_message = "Homing...".to_string();
-        
-        // TODO: Send to GRBL via connection manager
         tracing::info!("Home command");
     }
     
     /// Zero a specific axis
     fn send_zero_axis(&mut self, axis: char) {
-        let command = format!("G10 L20 P0 {}0", axis);
-        self.console.sent(command.clone());
+        let gcode = format!("G10 L20 P0 {}0", axis);
+        let command = GrblCommand::GCode(gcode.clone());
+        self.send_command(command);
         self.status_message = format!("Zeroing {} axis", axis);
-        
-        // TODO: Send to GRBL via connection manager
         tracing::info!("Zero axis: {}", axis);
     }
     
     /// Zero all axes
     fn send_zero_all(&mut self) {
-        let command = "G10 L20 P0 X0 Y0 Z0".to_string();
-        self.console.sent(command.clone());
+        let gcode = "G10 L20 P0 X0 Y0 Z0".to_string();
+        let command = GrblCommand::GCode(gcode.clone());
+        self.send_command(command);
         self.status_message = "Zeroing all axes".to_string();
-        
-        // TODO: Send to GRBL via connection manager
         tracing::info!("Zero all axes");
     }
     
@@ -679,6 +793,15 @@ impl RCandleApp {
 
 impl eframe::App for RCandleApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Debug: Log that update is being called
+        static mut FRAME_COUNT: usize = 0;
+        unsafe {
+            FRAME_COUNT += 1;
+            if FRAME_COUNT % 60 == 0 {  // Log every 60 frames (~1 second)
+                tracing::debug!("Update called: frame {}", FRAME_COUNT);
+            }
+        }
+        
         // Handle keyboard shortcuts
         ctx.input(|i| {
             // Ctrl+F to open find dialog
@@ -700,6 +823,7 @@ impl eframe::App for RCandleApp {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
                     if ui.button("📂 Open G-Code...").clicked() {
+                        tracing::info!("Open button clicked!");  // Debug
                         self.open_file();
                         ui.close_menu();
                     }
@@ -719,11 +843,16 @@ impl eframe::App for RCandleApp {
                 
                 ui.menu_button("Connection", |ui| {
                     if ui.button("🔌 Connect").clicked() {
-                        self.status_message = "Connecting... (TODO)".to_string();
+                        self.connect_to_grbl(ctx);
                         ui.close_menu();
                     }
                     if ui.button("⏸ Disconnect").clicked() {
-                        self.status_message = "Disconnected".to_string();
+                        self.disconnect_from_grbl();
+                        ui.close_menu();
+                    }
+                    ui.separator();
+                    if ui.button("🔄 Refresh Ports").clicked() {
+                        self.refresh_ports();
                         ui.close_menu();
                     }
                 });
@@ -811,17 +940,44 @@ impl eframe::App for RCandleApp {
                 // Connection section
                 ui.group(|ui| {
                     ui.label("Connection");
+                    
+                    // Port selection
+                    egui::ComboBox::from_label("Port")
+                        .selected_text(&self.selected_port)
+                        .show_ui(ui, |ui| {
+                            for port in &self.available_ports {
+                                ui.selectable_value(&mut self.selected_port, port.clone(), port);
+                            }
+                        });
+                    
                     ui.horizontal(|ui| {
-                        if ui.button("Connect").clicked() {
-                            tracing::info!("Connect button clicked");
-                            self.status_message = "Connecting...".to_string();
-                            self.console.info("Connect button clicked".to_string());
+                        let is_connected = self.app_state.is_connected();
+                        
+                        if !is_connected {
+                            if ui.button("🔌 Connect").clicked() {
+                                tracing::info!("Connect button clicked");
+                                self.connect_to_grbl(ctx);
+                            }
+                        } else {
+                            if ui.button("⏹ Disconnect").clicked() {
+                                tracing::info!("Disconnect button clicked");
+                                self.disconnect_from_grbl();
+                            }
                         }
-                        if ui.button("Disconnect").clicked() {
-                            tracing::info!("Disconnect button clicked");
-                            self.status_message = "Disconnected".to_string();
-                            self.console.info("Disconnect button clicked".to_string());
+                        
+                        if ui.button("🔄").clicked() {
+                            self.refresh_ports();
                         }
+                    });
+                    
+                    // Connection status indicator
+                    ui.horizontal(|ui| {
+                        let (status_text, status_color) = if self.app_state.is_connected() {
+                            ("● Connected", egui::Color32::GREEN)
+                        } else {
+                            ("○ Disconnected", egui::Color32::GRAY)
+                        };
+                        ui.colored_label(status_color, status_text);
                     });
                 });
                 
