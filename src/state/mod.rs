@@ -7,10 +7,14 @@ use std::sync::{Arc, RwLock};
 mod machine;
 mod program;
 mod app;
+mod events;
+mod updater;
 
 pub use machine::{MachineState, MachineStatus, Position, CoordinateSystem};
 pub use program::{ProgramState, ExecutionState};
 pub use app::AppState;
+pub use events::{StateEvent, StateEventBroadcaster};
+pub use updater::StateUpdater;
 
 /// Shared state wrapper for thread-safe access
 #[derive(Clone)]
