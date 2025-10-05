@@ -15,6 +15,10 @@ fn main() -> anyhow::Result<()> {
 
     tracing::info!("rCandle v{} starting...", rcandle::VERSION);
 
+    // Create a Tokio runtime that will be available throughout the application
+    let runtime = tokio::runtime::Runtime::new()?;
+    let _guard = runtime.enter();
+
     // Configure and run the egui application
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -31,6 +35,7 @@ fn main() -> anyhow::Result<()> {
     tracing::info!("Launching UI...");
     
     // eframe 0.28 changed the signature - now returns Result directly
+    // The _guard keeps us in the runtime context for the entire duration
     eframe::run_native(
         "rCandle",
         native_options,

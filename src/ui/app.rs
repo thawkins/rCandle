@@ -66,6 +66,8 @@ pub struct RCandleApp {
     current_line: usize,
     /// Connection manager (wrapped in Arc<TokioMutex> for async access)
     connection_manager: Option<Arc<TokioMutex<ConnectionManager>>>,
+    /// Pending connection manager (set by async connection task)
+    pending_connection_manager: Option<Arc<TokioMutex<Option<Arc<TokioMutex<ConnectionManager>>>>>>,
     /// Command queue for GRBL
     command_queue: Arc<TokioMutex<CommandQueue>>,
     /// Selected serial port for connection
@@ -171,6 +173,7 @@ impl RCandleApp {
             total_paused_duration: std::time::Duration::ZERO,
             current_line: 0,
             connection_manager: None,
+            pending_connection_manager: None,
             command_queue,
             selected_port: available_ports.first().cloned().unwrap_or_default(),
             available_ports,
@@ -373,6 +376,10 @@ impl RCandleApp {
         let ctx = ctx.clone();
         let app_state = self.app_state.clone();
         
+        // Create a shared slot for the connection manager
+        let manager_slot = Arc::new(TokioMutex::new(None::<Arc<TokioMutex<ConnectionManager>>>));
+        let manager_slot_write = manager_slot.clone();
+        
         // Spawn connection task
         tokio::spawn(async move {
             let serial_conn = SerialConnection::new(port.clone(), 115200);
@@ -383,14 +390,21 @@ impl RCandleApp {
                 Ok(()) => {
                     tracing::info!("Successfully connected to {}", port);
                     *app_state.connected.write() = true;
-                    // TODO: Store the manager for later use
+                    
+                    // Store the manager in the shared slot
+                    let manager_arc = Arc::new(TokioMutex::new(manager));
+                    *manager_slot_write.lock().await = Some(manager_arc);
                 }
                 Err(e) => {
                     tracing::error!("Connection failed: {}", e);
+                    *app_state.connected.write() = false;
                 }
             }
             ctx.request_repaint();
         });
+        
+        // Store the manager slot so we can retrieve it in the update loop
+        self.pending_connection_manager = Some(manager_slot);
     }
 
     /// Disconnect from GRBL controller
@@ -423,11 +437,12 @@ impl RCandleApp {
         let command_str = command.format();
         self.console.sent(command_str.trim().to_string());
         
-        let queue = Arc::clone(&self.command_queue);
+        // Clone the manager and send the command via the connection manager
+        let manager = Arc::clone(self.connection_manager.as_ref().unwrap());
         tokio::spawn(async move {
-            let q = queue.lock().await;
-            if let Err(e) = q.enqueue(command).await {
-                tracing::error!("Failed to enqueue command: {}", e);
+            let mgr = manager.lock().await;
+            if let Err(e) = mgr.send_command(command).await {
+                tracing::error!("Failed to send command: {}", e);
             }
         });
     }
@@ -1469,6 +1484,32 @@ impl RCandleApp {
 
 impl eframe::App for RCandleApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Check for pending connection manager from async connection task
+        let mut manager_to_store = None;
+        let mut clear_pending = false;
+        
+        if let Some(pending_slot) = &self.pending_connection_manager {
+            // Try to get the manager without blocking
+            if let Ok(mut slot_guard) = pending_slot.try_lock() {
+                if let Some(manager) = slot_guard.take() {
+                    // We got the manager! Store it temporarily
+                    manager_to_store = Some(manager);
+                    clear_pending = true;
+                }
+            }
+        }
+        
+        // Now update the fields outside the borrow
+        if let Some(manager) = manager_to_store {
+            self.connection_manager = Some(manager);
+            self.status_message = "Connected".to_string();
+            self.console.info("Connection established".to_string());
+            tracing::info!("Connection manager stored successfully");
+        }
+        if clear_pending {
+            self.pending_connection_manager = None;
+        }
+        
         // Debug: Log that update is being called
         static FRAME_COUNT: AtomicUsize = AtomicUsize::new(0);
         let count = FRAME_COUNT.fetch_add(1, Ordering::Relaxed);

@@ -200,12 +200,18 @@ impl ConnectionManager {
     /// * `Ok(())` if command queued successfully
     /// * `Err(Error)` if queueing failed
     pub async fn send_command(&self, command: GrblCommand) -> Result<()> {
+        tracing::info!("send_command called with: {:?}", command);
+        
         if !self.is_connected().await {
+            tracing::error!("send_command: not connected");
             return Err(Error::Connection("Not connected".to_string()));
         }
         
+        tracing::info!("send_command: connection OK, enqueueing command");
         let queue = self.queue.write().await;
-        queue.enqueue(command).await.map(|_| ())
+        let result = queue.enqueue(command).await;
+        tracing::info!("send_command: enqueue result: {:?}", result);
+        result.map(|_| ())
     }
     
     /// Send a real-time command (immediate, bypasses queue)
@@ -443,11 +449,17 @@ impl ConnectionManager {
         // Check if we can send the next command
         if let Some(command) = q.next_command().await? {
             let command_str = command.to_string();
-            tracing::debug!("Sending command: {}", command_str);
+            tracing::info!("Sending command to GRBL: {}", command_str);
             
             // Send the command
             let mut conn = connection.write().await;
+            if !conn.is_connected() {
+                tracing::error!("Attempted to send command but connection is not active");
+                return Err(Error::Connection("Not connected".to_string()));
+            }
+            
             conn.send_line(&command_str).await?;
+            tracing::info!("Command sent successfully: {}", command_str);
             
             // Mark as sent in queue
             q.mark_sent().await?;

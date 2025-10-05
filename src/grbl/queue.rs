@@ -120,10 +120,12 @@ impl CommandQueue {
 
     /// Add a command to the queue
     pub async fn enqueue(&self, command: GrblCommand) -> Result<u64> {
+        tracing::info!("Queue: enqueue called with command: {:?}", command);
         let mut queue = self.queue.lock().await;
         
         // Check if queue is full
         if queue.len() >= self.capacity {
+            tracing::error!("Queue: queue is full (capacity: {})", self.capacity);
             return Err(Error::Queue("Command queue is full".to_string()));
         }
 
@@ -142,6 +144,7 @@ impl CommandQueue {
         };
 
         queue.push_back(queued_cmd);
+        tracing::info!("Queue: command {} added, queue length now: {}", id, queue.len());
 
         // Update statistics
         let mut stats = self.stats.lock().await;
@@ -151,6 +154,7 @@ impl CommandQueue {
 
         // Try to send next command if we're idle
         drop(queue);
+        tracing::info!("Queue: attempting to send next command");
         self.try_send_next().await?;
 
         Ok(id)
@@ -366,14 +370,22 @@ impl CommandQueue {
     pub async fn next_command(&self) -> Result<Option<GrblCommand>> {
         // Check if we can send
         let state = self.state.lock().await;
+        tracing::debug!("Queue: next_command called, current state: {:?}", *state);
         if *state != QueueState::Idle {
+            tracing::debug!("Queue: not in Idle state, returning None");
             return Ok(None);
         }
         drop(state);
         
         // Get next command
         let queue = self.queue.lock().await;
-        Ok(queue.front().map(|cmd| cmd.command.clone()))
+        let cmd = queue.front().map(|cmd| cmd.command.clone());
+        if let Some(ref c) = cmd {
+            tracing::info!("Queue: next_command returning: {:?}", c);
+        } else {
+            tracing::debug!("Queue: queue is empty");
+        }
+        Ok(cmd)
     }
     
     /// Mark the current command as sent
