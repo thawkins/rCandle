@@ -1,18 +1,18 @@
 //! rCandle core library
-//! 
+//!
 //! This library provides the core functionality for the rCandle GRBL controller.
 
 #![warn(missing_docs)]
 #![warn(clippy::all)]
 
 pub mod connection;
+pub mod grbl;
+pub mod heightmap;
 pub mod parser;
 pub mod renderer;
-pub mod state;
-pub mod heightmap;
 pub mod script;
+pub mod state;
 pub mod ui;
-pub mod grbl;
 pub mod utils;
 
 /// Application version

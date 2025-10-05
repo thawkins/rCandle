@@ -1,0 +1,9 @@
+# Clippy configuration for rCandle
+# Warn on all wildcard imports
+warn-on-all-wildcard-imports = true
+
+# Maximum cognitive complexity before warning
+cognitive-complexity-threshold = 30
+
+# Warn on missing documentation
+missing-docs-in-crate-items = false
