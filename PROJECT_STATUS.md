@@ -3,7 +3,7 @@
 ## Overview
 rCandle is a Rust-based GRBL controller application with G-Code visualization, migrated from the reference C++ Candle application. It uses the egui framework for the user interface and targets Windows, Linux, and macOS.
 
-## Current Status: Phase 6 - UI Implementation Complete (Pending Interaction Fix)
+## Current Status: Phase 8 - Advanced Features Implementation Complete
 
 ### What's Working
 
@@ -31,13 +31,13 @@ rCandle is a Rust-based GRBL controller application with G-Code visualization, m
 - **Connection Manager**: Lifecycle management, automatic status queries, command queue
 - **Multiple Transports**: Serial, Telnet, and WebSocket support (infrastructure ready)
 
-#### Recent Additions (Week 13)
-- **Program Execution Controls**: Full execution panel with time tracking and progress bar
-- **Settings Dialog**: Tabbed interface for General, Connection, Visualization, Jog, and UI settings
-- **Theme Switching**: Dynamic dark/light mode from settings
-- **Font Sizing**: Adjustable font size across all UI elements
-- **Keyboard Shortcuts**: Comprehensive shortcuts including Ctrl+, for settings
-- **UI Polish**: Tooltips, improved spacing, visual feedback
+#### Recent Additions (Phase 8 - Advanced Features)
+- **Scripting Engine**: Full Rhai integration with API for machine control, status queries, and program control
+- **User Commands**: Customizable command buttons with default library (spindle, coolant, safety commands)
+- **Override Controls**: Real-time feed rate, spindle speed, and rapid override support
+- **View Presets**: 7 predefined camera views (Isometric, Top, Front, Right, Left, Back, Bottom)
+- **Error Handling**: Extended error types for script execution
+- **Unit Tests**: Comprehensive tests for overrides and view presets
 
 ### Current Limitations
 
@@ -76,7 +76,8 @@ rcandle/
 │   │   ├── commands.rs        # Command formatting
 │   │   ├── responses.rs       # Response parsing
 │   │   ├── queue.rs           # Command queue
-│   │   └── realtime.rs        # Real-time commands
+│   │   ├── realtime.rs        # Real-time commands
+│   │   └── overrides.rs       # Override controls (Phase 8) ✨
 │   ├── parser/                # G-Code parsing
 │   │   ├── tokenizer.rs       # Lexical analysis
 │   │   ├── parser.rs          # Syntax parsing
@@ -85,7 +86,13 @@ rcandle/
 │   ├── renderer/              # 3D visualization
 │   │   ├── camera.rs          # Camera system
 │   │   ├── line_renderer.rs   # Line drawing
+│   │   ├── view_presets.rs    # View presets (Phase 8) ✨
 │   │   └── shaders/           # WGSL shaders
+│   ├── script/                # Scripting engine (Phase 8) ✨
+│   │   ├── mod.rs             # Main module
+│   │   ├── api.rs             # Script API
+│   │   ├── executor.rs        # Script executor
+│   │   └── user_commands.rs   # User command system
 │   ├── state/                 # Application state
 │   │   ├── app.rs             # App state management
 │   │   ├── execution.rs       # Execution state
@@ -152,13 +159,21 @@ rcandle/
 - ⏸ Status monitoring (blocked by interaction issue)
 - **Blocker**: UI interaction issue
 
-#### Phase 7: Testing & Hardware Integration (Current)
+#### Phase 7: Testing & Hardware Integration (Pending)
 - ❌ Fix UI interaction issue (critical blocker)
 - ⏸ Manual UI testing (blocked)
 - ⏸ Integration testing (blocked)
 - ⏸ Platform-specific testing (blocked)
 - ⏸ Hardware testing with GRBL (blocked)
 - Documentation (in progress)
+
+#### Phase 8: Advanced Features ✅ (Complete - Infrastructure)
+- ✅ Scripting engine with Rhai integration
+- ✅ User-defined command buttons
+- ✅ Override controls (feed rate, spindle, rapid)
+- ✅ View presets for camera
+- ⏸ UI integration for advanced features (pending)
+- ⏸ Alternative connections complete (deferred, infrastructure exists)
 
 ### Next Steps
 
@@ -271,5 +286,5 @@ cargo run
 
 **Last Updated**: 2024-12-19
 **Version**: 0.1.0 (Development)
-**Status**: Phase 6 Complete (95%) - Phase 7 Blocked by UI Interaction Issue
-**Progress**: UI implementation complete, hardware integration pending interaction fix
+**Status**: Phase 8 Complete - Advanced Features Infrastructure
+**Progress**: Core functionality complete, UI interaction issue blocking testing, Phase 8 advanced features implemented

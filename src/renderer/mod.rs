@@ -12,7 +12,9 @@ mod camera;
 mod grid;
 mod renderer;
 mod toolpath;
+mod view_presets;
 
 pub use camera::{Camera, CameraController};
 pub use renderer::Renderer;
 pub use toolpath::ToolpathRenderer;
+pub use view_presets::{ViewPreset, calculate_view_distance, calculate_center};

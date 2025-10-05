@@ -4,7 +4,7 @@
 
 rCandle is a modern reimplementation of the [Candle](https://github.com/Denvi/Candle) CNC controller application, written in Rust for improved performance, safety, and maintainability.
 
-![Status: In Development](https://img.shields.io/badge/status-in%20development%20(75%25)-yellow)
+![Status: In Development](https://img.shields.io/badge/status-in%20development%20(80%25)-yellow)
 ![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue)
 ![Rust Version](https://img.shields.io/badge/rust-1.75%2B-orange)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)
@@ -15,28 +15,32 @@ rCandle is designed for controlling CNC machines equipped with GRBL firmware usi
 
 ### Current Development State
 
-The project has reached approximately **75% completion** with all core systems implemented and integrated. The application features a fully functional G-Code parser, 3D visualization engine, serial communication layer, and comprehensive user interface. Development is currently focused on resolving a UI interaction issue before proceeding to hardware integration testing.
+The project has reached approximately **80% completion** with all core systems implemented, integrated, and Phase 8 advanced features completed. The application features a fully functional G-Code parser, 3D visualization engine, serial communication layer, comprehensive user interface, scripting engine, user commands, override controls, and view presets. Development is currently focused on resolving a UI interaction issue before proceeding to hardware integration testing.
 
-**Recent Achievements** (Week 13):
-- Completed program execution controls with time tracking and progress monitoring
-- Implemented comprehensive settings dialog with 5 configuration categories
-- Added dark/light theme switching with dynamic font sizing
-- Integrated all UI panels into cohesive main window
-- Added keyboard shortcuts for common operations
-- Polished UI with tooltips and improved spacing
+**Recent Achievements** (Phase 8 - Advanced Features):
+- Implemented Rhai scripting engine with comprehensive API for machine control and automation
+- Added user-defined command buttons with default library (spindle, coolant, safety operations)
+- Implemented real-time override controls (feed rate, spindle speed, rapid movement)
+- Added 7 camera view presets (Isometric, Top, Front, Right, Left, Back, Bottom)
+- Extended error handling for script execution
+- Added comprehensive unit tests for new features
 
 ### Key Features
 
 #### Implemented ✅
 - **G-Code Management**: Load, edit, save, and validate G-Code files
-- **3D Visualization**: Real-time toolpath rendering with interactive camera controls
+- **3D Visualization**: Real-time toolpath rendering with interactive camera controls and view presets
 - **Serial Communication**: FTDI/USB serial port support with device discovery
-- **GRBL Protocol**: Command formatting, queue management, response parsing
+- **GRBL Protocol**: Command formatting, queue management, response parsing, override controls
 - **Machine Control**: Jog controls, homing, zero positioning, coordinate systems
 - **Console Interface**: Command history with color-coded output
 - **Settings System**: Comprehensive configuration with persistence
 - **Program Execution**: Run/Pause/Stop controls with progress tracking and step mode
 - **Modern UI**: Dark/light themes, keyboard shortcuts, responsive layout
+- **Scripting Engine**: Rhai-based automation with comprehensive API
+- **User Commands**: Customizable command buttons with default library
+- **Override Controls**: Real-time feed rate, spindle speed, and rapid overrides
+- **View Presets**: 7 predefined camera views for common angles
 
 #### In Progress 🚧
 - **UI Interaction**: Known issue preventing user input (under investigation)
@@ -47,12 +51,11 @@ The project has reached approximately **75% completion** with all core systems i
 - **Height Mapping**: Surface scanning and automatic Z-axis compensation
 - **Tool Management**: Tool change sequences and tool library
 - **Probing Operations**: Edge finding, center finding, tool length measurement
-- **Scripting**: Custom automation with embedded scripting engine
-- **Advanced Features**: Macros, custom G-Code optimization, multi-language support
+- **Advanced Features**: Measurement tools, section views, multi-language support
 
 ## Status
 
-This project is currently in **active development** with substantial core functionality complete. Development is approximately **75% complete** with the application being in a **near-functional state** pending resolution of a UI interaction issue.
+This project is currently in **active development** with substantial core functionality complete. Development is approximately **80% complete** with the application being in a **near-functional state** pending resolution of a UI interaction issue.
 
 ### ✅ Completed Components
 
@@ -78,6 +81,10 @@ This project is currently in **active development** with substantial core functi
 - **Project Architecture**: Modular design with clear separation of concerns
 - **Build System**: Cross-platform Cargo configuration
 - **Error Handling**: Comprehensive error types and propagation
+- **Scripting System**: Rhai engine with script library and API bindings
+- **User Commands**: Command library with category organization
+- **Override System**: Real-time GRBL override commands
+- **View Presets**: Camera positioning system
 - **Logging**: Structured logging with tracing framework
 - **Configuration**: JSON-based settings with validation
 

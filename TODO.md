@@ -34,6 +34,59 @@ None of the UI controls (buttons, text fields, etc.) are responding to mouse or 
 - Try minimal egui example to verify egui itself works
 - Check eframe version and compatibility
 
+## Phase 8: Advanced Features (Implementation Complete, UI Integration Pending)
+
+### Scripting System ✅
+- [x] Integrate Rhai scripting engine
+- [x] Define script API
+- [x] Implement API bindings (machine control, status, program control)
+- [x] Script executor with lifecycle management
+- [x] Script library for managing user scripts
+- [ ] Add script editor UI
+- [ ] Test script execution
+- [ ] Wire up script command processing
+
+### User Commands ✅
+- [x] Implement user command storage structure
+- [x] Create default command library
+- [x] User command with multiple GRBL commands
+- [x] Category organization
+- [x] Confirmation dialogs support
+- [x] Keyboard shortcuts support
+- [ ] Add user command panel UI
+- [ ] Implement custom buttons in UI
+- [ ] Add command editor dialog
+- [ ] Test user commands with connection
+
+### Override Controls ✅
+- [x] Implement feed rate override (10-200%)
+- [x] Implement spindle speed override (10-200%)
+- [x] Implement rapid override (25%, 50%, 100%)
+- [x] Override state tracking
+- [x] Real-time command byte generation
+- [x] Unit tests for overrides
+- [ ] Add override control UI (sliders/buttons)
+- [ ] Wire up to connection manager
+- [ ] Test override functionality with GRBL
+
+### Advanced Visualization ✅
+- [x] Implement view presets (7 views)
+- [x] Camera positioning for presets
+- [x] Distance and center calculation
+- [x] Unit tests for view presets
+- [ ] Add view preset buttons to UI
+- [ ] Add measurement tools
+- [ ] Add selection tools
+- [ ] Implement view presets (top, front, side, iso)
+- [ ] Add screenshot/export functionality
+
+### Additional Connection Types ⏸️
+- [ ] Complete TelnetConnection implementation
+- [ ] Complete WebSocketConnection implementation
+- [ ] Add connection type selection in UI
+- [ ] Test alternative connections
+Note: Infrastructure exists, implementation deferred
+
 ## Phase 6: Complete Remaining Features
 
 ### Connection Management
@@ -163,6 +216,10 @@ None of the UI controls (buttons, text fields, etc.) are responding to mouse or 
 - ✅ Settings management
 - ✅ Program execution controls (UI)
 - ✅ Settings dialog with tabbed interface
+- ✅ Scripting engine with Rhai
+- ✅ User command system
+- ✅ Override controls (feed, spindle, rapid)
+- ✅ View presets for camera
 
 ## Future Enhancements
 - WebSocket and Telnet connection support (infrastructure exists)

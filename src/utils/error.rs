@@ -54,6 +54,10 @@ pub enum Error {
     #[error("Queue error: {0}")]
     Queue(String),
 
+    /// Script error
+    #[error("Script error: {0}")]
+    Script(String),
+
     /// Generic error
     #[error("{0}")]
     Generic(String),
@@ -103,5 +107,10 @@ impl Error {
     /// Create a timeout error
     pub fn timeout<S: Into<String>>(msg: S) -> Self {
         Error::Timeout(msg.into())
+    }
+
+    /// Create a script error
+    pub fn script<S: Into<String>>(msg: S) -> Self {
+        Error::Script(msg.into())
     }
 }
