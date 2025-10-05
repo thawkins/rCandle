@@ -2,7 +2,7 @@
 
 use crate::{
     connection::{ConnectionManager, ConnectionManagerConfig, SerialConnection},
-    grbl::{CommandQueue, GrblCommand},
+    grbl::{CommandQueue, GrblCommand, OverrideCommand, FeedRateOverride, SpindleOverride, RapidOverride},
     parser::{Parser, Preprocessor, Segment, SegmentType, Tokenizer},
     renderer::{Renderer, ViewPreset},
     script::{ScriptLibrary, UserCommandLibrary, UserScript},
@@ -85,6 +85,12 @@ pub struct RCandleApp {
     editing_script: Option<UserScript>,
     /// Show user commands panel
     show_user_commands: bool,
+    /// Previous feed override value (for change detection)
+    prev_feed_override: f64,
+    /// Previous rapid override value (for change detection)
+    prev_rapid_override: f64,
+    /// Previous spindle override value (for change detection)
+    prev_spindle_override: f64,
 }
 
 impl RCandleApp {
@@ -174,6 +180,9 @@ impl RCandleApp {
             show_script_editor: false,
             editing_script: None,
             show_user_commands: true,
+            prev_feed_override: 100.0,
+            prev_rapid_override: 100.0,
+            prev_spindle_override: 100.0,
         }
     }
 
@@ -501,6 +510,136 @@ impl RCandleApp {
         
         // TODO: Send to GRBL via connection manager
         tracing::info!("Spindle command: {}", command);
+    }
+
+    /// Send feed rate override command to GRBL
+    fn send_feed_override(&mut self, target_percent: f64) {
+        if self.connection_manager.is_none() {
+            return; // Silently skip if not connected
+        }
+        
+        let current = self.prev_feed_override;
+        let diff = target_percent - current;
+        
+        if diff.abs() < 0.5 {
+            return; // No significant change
+        }
+        
+        // Determine which override commands to send
+        if diff.abs() >= 10.0 {
+            // Use coarse adjustments for large changes
+            let steps = (diff / 10.0).round() as i32;
+            let cmd = if steps > 0 {
+                OverrideCommand::FeedRate(FeedRateOverride::CoarseUp)
+            } else {
+                OverrideCommand::FeedRate(FeedRateOverride::CoarseDown)
+            };
+            
+            for _ in 0..steps.abs() {
+                self.send_realtime_byte(cmd.to_byte());
+            }
+        } else {
+            // Use fine adjustments for small changes
+            let steps = diff.round() as i32;
+            let cmd = if steps > 0 {
+                OverrideCommand::FeedRate(FeedRateOverride::FineUp)
+            } else {
+                OverrideCommand::FeedRate(FeedRateOverride::FineDown)
+            };
+            
+            for _ in 0..steps.abs() {
+                self.send_realtime_byte(cmd.to_byte());
+            }
+        }
+        
+        self.prev_feed_override = target_percent;
+        self.console.info(format!("Feed override: {:.0}%", target_percent));
+        tracing::debug!("Feed rate override: {:.0}%", target_percent);
+    }
+
+    /// Send rapid override command to GRBL
+    fn send_rapid_override(&mut self, target_percent: f64) {
+        if self.connection_manager.is_none() {
+            return; // Silently skip if not connected
+        }
+        
+        let current = self.prev_rapid_override;
+        
+        if (target_percent - current).abs() < 0.5 {
+            return; // No significant change
+        }
+        
+        // GRBL rapid override is discrete: 25%, 50%, or 100%
+        let cmd = if target_percent <= 25.0 {
+            OverrideCommand::Rapid(RapidOverride::Low)
+        } else if target_percent <= 50.0 {
+            OverrideCommand::Rapid(RapidOverride::Medium)
+        } else {
+            OverrideCommand::Rapid(RapidOverride::Reset)
+        };
+        
+        self.send_realtime_byte(cmd.to_byte());
+        self.prev_rapid_override = target_percent;
+        self.console.info(format!("Rapid override: {:.0}%", target_percent));
+        tracing::debug!("Rapid override: {:.0}%", target_percent);
+    }
+
+    /// Send spindle override command to GRBL
+    fn send_spindle_override(&mut self, target_percent: f64) {
+        if self.connection_manager.is_none() {
+            return; // Silently skip if not connected
+        }
+        
+        let current = self.prev_spindle_override;
+        let diff = target_percent - current;
+        
+        if diff.abs() < 0.5 {
+            return; // No significant change
+        }
+        
+        // Determine which override commands to send
+        if diff.abs() >= 10.0 {
+            // Use coarse adjustments for large changes
+            let steps = (diff / 10.0).round() as i32;
+            let cmd = if steps > 0 {
+                OverrideCommand::SpindleSpeed(SpindleOverride::CoarseUp)
+            } else {
+                OverrideCommand::SpindleSpeed(SpindleOverride::CoarseDown)
+            };
+            
+            for _ in 0..steps.abs() {
+                self.send_realtime_byte(cmd.to_byte());
+            }
+        } else {
+            // Use fine adjustments for small changes
+            let steps = diff.round() as i32;
+            let cmd = if steps > 0 {
+                OverrideCommand::SpindleSpeed(SpindleOverride::FineUp)
+            } else {
+                OverrideCommand::SpindleSpeed(SpindleOverride::FineDown)
+            };
+            
+            for _ in 0..steps.abs() {
+                self.send_realtime_byte(cmd.to_byte());
+            }
+        }
+        
+        self.prev_spindle_override = target_percent;
+        self.console.info(format!("Spindle override: {:.0}%", target_percent));
+        tracing::debug!("Spindle speed override: {:.0}%", target_percent);
+    }
+
+    /// Send a real-time command byte to GRBL
+    fn send_realtime_byte(&mut self, byte: u8) {
+        if let Some(ref manager) = self.connection_manager {
+            let manager = Arc::clone(manager);
+            tokio::spawn(async move {
+                let mut mgr = manager.lock().await;
+                if let Err(e) = mgr.send_realtime(byte).await {
+                    tracing::error!("Failed to send real-time command: {}", e);
+                }
+            });
+        }
     }
 
     fn handle_console_command(&mut self, command: &str) {
@@ -1745,9 +1884,11 @@ impl eframe::App for RCandleApp {
                     // Spindle override
                     ui.horizontal(|ui| {
                         ui.label("Override:");
-                        ui.add(egui::Slider::new(&mut self.spindle_override, 0.0..=200.0)
+                        if ui.add(egui::Slider::new(&mut self.spindle_override, 0.0..=200.0)
                             .suffix("%")
-                            .clamp_to_range(true));
+                            .clamp_to_range(true)).changed() {
+                            self.send_spindle_override(self.spindle_override);
+                        }
                     });
                     
                     ui.add_space(5.0);
@@ -1773,21 +1914,26 @@ impl eframe::App for RCandleApp {
                     ui.label("Feed Rate Override");
                     
                     ui.horizontal(|ui| {
-                        ui.add(egui::Slider::new(&mut self.feed_override, 0.0..=200.0)
+                        if ui.add(egui::Slider::new(&mut self.feed_override, 0.0..=200.0)
                             .suffix("%")
-                            .clamp_to_range(true));
+                            .clamp_to_range(true)).changed() {
+                            self.send_feed_override(self.feed_override);
+                        }
                     });
                     
                     // Quick preset buttons
                     ui.horizontal(|ui| {
                         if ui.button("50%").clicked() {
                             self.feed_override = 50.0;
+                            self.send_feed_override(self.feed_override);
                         }
                         if ui.button("100%").clicked() {
                             self.feed_override = 100.0;
+                            self.send_feed_override(self.feed_override);
                         }
                         if ui.button("150%").clicked() {
                             self.feed_override = 150.0;
+                            self.send_feed_override(self.feed_override);
                         }
                     });
                     
@@ -1801,21 +1947,26 @@ impl eframe::App for RCandleApp {
                     ui.label("Rapid Override");
                     
                     ui.horizontal(|ui| {
-                        ui.add(egui::Slider::new(&mut self.rapid_override, 25.0..=100.0)
+                        if ui.add(egui::Slider::new(&mut self.rapid_override, 25.0..=100.0)
                             .suffix("%")
-                            .clamp_to_range(true));
+                            .clamp_to_range(true)).changed() {
+                            self.send_rapid_override(self.rapid_override);
+                        }
                     });
                     
                     // Quick preset buttons
                     ui.horizontal(|ui| {
                         if ui.button("25%").clicked() {
                             self.rapid_override = 25.0;
+                            self.send_rapid_override(self.rapid_override);
                         }
                         if ui.button("50%").clicked() {
                             self.rapid_override = 50.0;
+                            self.send_rapid_override(self.rapid_override);
                         }
                         if ui.button("100%").clicked() {
                             self.rapid_override = 100.0;
+                            self.send_rapid_override(self.rapid_override);
                         }
                     });
                     
