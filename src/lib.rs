@@ -11,6 +11,7 @@ pub mod heightmap;
 pub mod parser;
 pub mod renderer;
 pub mod script;
+pub mod settings;
 pub mod state;
 pub mod ui;
 pub mod utils;

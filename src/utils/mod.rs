@@ -1,5 +1,9 @@
-//! Utils module
+//! Utilities module
 //!
-//! TODO: Add module documentation
+//! Provides error types, logging setup, and common utilities.
 
-#![allow(dead_code)] // Remove after implementation
+pub mod error;
+pub mod logging;
+
+pub use error::{Error, Result};
+pub use logging::init_logging;
