@@ -1,5 +1,9 @@
-//! Ui module
+//! UI module - egui-based user interface
 //!
-//! TODO: Add module documentation
+//! Provides the main application window and UI components.
 
-#![allow(dead_code)] // Remove after implementation
+mod app;
+mod panels;
+mod widgets;
+
+pub use app::RCandleApp;

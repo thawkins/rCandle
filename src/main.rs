@@ -3,8 +3,7 @@
 //! A Rust-based GRBL controller with G-Code visualization.
 
 use rcandle::{
-    settings::Settings,
-    state::AppState,
+    ui::RCandleApp,
     utils::init_logging,
 };
 
@@ -16,25 +15,23 @@ fn main() -> anyhow::Result<()> {
 
     tracing::info!("rCandle v{} starting...", rcandle::VERSION);
 
-    // Load settings
-    let settings = Settings::load_or_default();
-    tracing::info!("Settings loaded from: {:?}", Settings::default_config_path()?);
+    // Configure and run the egui application
+    let native_options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            .with_title("rCandle - GRBL Controller")
+            .with_inner_size([1280.0, 800.0])
+            .with_min_inner_size([800.0, 600.0]),
+        ..Default::default()
+    };
 
-    // Initialize application state
-    let _app_state = AppState::new();
-    tracing::info!("Application state initialized");
+    tracing::info!("Launching UI...");
+    
+    eframe::run_native(
+        "rCandle",
+        native_options,
+        Box::new(|cc| Box::new(RCandleApp::new(cc))),
+    ).map_err(|e| anyhow::anyhow!("Failed to run eframe: {}", e))?;
 
-    tracing::info!("rCandle initialized successfully");
-    tracing::info!("Units: {}", if settings.general.units_metric { "Metric (mm)" } else { "Imperial (inches)" });
-    tracing::info!("Baud rate: {}", settings.connection.baud_rate);
-
-    println!("rCandle v{}", rcandle::VERSION);
-    println!("Application initialized. GUI will be implemented in Phase 6.");
-    println!("Press Ctrl+C to exit.");
-
-    // TODO: Start UI event loop (Phase 6)
-    // For now, just wait
-    std::thread::sleep(std::time::Duration::from_secs(2));
-
+    tracing::info!("rCandle shutting down");
     Ok(())
 }
