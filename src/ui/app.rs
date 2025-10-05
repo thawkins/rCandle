@@ -2,7 +2,7 @@
 
 use crate::{
     connection::{ConnectionManager, ConnectionManagerConfig, SerialConnection},
-    grbl::{CommandQueue, GrblCommand, OverrideCommand, FeedRateOverride, SpindleOverride, RapidOverride},
+    grbl::{CommandQueue, GrblCommand, GrblResponse, OverrideCommand, FeedRateOverride, SpindleOverride, RapidOverride},
     parser::{Parser, Preprocessor, Segment, SegmentType, Tokenizer},
     renderer::{Renderer, ViewPreset},
     script::{ScriptLibrary, UserCommandLibrary, UserScript},
@@ -94,6 +94,8 @@ pub struct RCandleApp {
     prev_rapid_override: f64,
     /// Previous spindle override value (for change detection)
     prev_spindle_override: f64,
+    /// Response receiver for GRBL responses
+    response_receiver: Option<tokio::sync::broadcast::Receiver<GrblResponse>>,
 }
 
 impl RCandleApp {
@@ -187,6 +189,7 @@ impl RCandleApp {
             prev_feed_override: 100.0,
             prev_rapid_override: 100.0,
             prev_spindle_override: 100.0,
+            response_receiver: None,
         }
     }
 
@@ -512,6 +515,61 @@ impl RCandleApp {
         
         // TODO: Send to GRBL via connection manager
         tracing::info!("WCS command: G{}", wcs);
+    }
+    
+    /// Handle a response received from GRBL
+    fn handle_grbl_response(&mut self, response: GrblResponse) {
+        // Format the response for display
+        let response_text = match &response {
+            GrblResponse::Ok => "ok".to_string(),
+            GrblResponse::Error(code) => {
+                let msg = response.error_message().unwrap_or("Unknown error");
+                format!("error:{} ({})", code, msg)
+            }
+            GrblResponse::Alarm(code) => {
+                let msg = response.error_message().unwrap_or("Unknown alarm");
+                format!("ALARM:{} ({})", code, msg)
+            }
+            GrblResponse::Status(status) => {
+                // Format status report
+                if let Some(mpos) = &status.mpos {
+                    format!("<{:?}|MPos:{:.3},{:.3},{:.3}>", 
+                        status.state,
+                        mpos.x,
+                        mpos.y,
+                        mpos.z)
+                } else if let Some(wpos) = &status.wpos {
+                    format!("<{:?}|WPos:{:.3},{:.3},{:.3}>", 
+                        status.state,
+                        wpos.x,
+                        wpos.y,
+                        wpos.z)
+                } else {
+                    format!("<{:?}>", status.state)
+                }
+            }
+            GrblResponse::Welcome { version } => {
+                format!("Grbl {} ['$' for help]", version)
+            }
+            GrblResponse::Setting { number, value } => {
+                format!("${}={}", number, value)
+            }
+            GrblResponse::Feedback(msg) => {
+                format!("[{}]", msg)
+            }
+            GrblResponse::Message(msg) => {
+                msg.clone()
+            }
+        };
+        
+        // Add to console with appropriate styling
+        if response.is_error() || response.is_alarm() {
+            self.console.error(response_text);
+        } else {
+            self.console.received(response_text);
+        }
+        
+        tracing::debug!("GRBL response: {:?}", response);
     }
     
     /// Send spindle control command
@@ -1510,6 +1568,12 @@ impl eframe::App for RCandleApp {
         
         // Now update the fields outside the borrow
         if let Some(manager) = manager_to_store {
+            // Subscribe to responses before storing the manager
+            let manager_guard = tokio::runtime::Handle::current().block_on(manager.lock());
+            let response_rx = manager_guard.subscribe_responses();
+            drop(manager_guard);
+            
+            self.response_receiver = Some(response_rx);
             self.connection_manager = Some(manager);
             self.status_message = "Connected".to_string();
             self.console.info("Connection established".to_string());
@@ -1517,6 +1581,20 @@ impl eframe::App for RCandleApp {
         }
         if clear_pending {
             self.pending_connection_manager = None;
+        }
+        
+        // Check for responses from GRBL
+        let mut responses = Vec::new();
+        if let Some(ref mut rx) = self.response_receiver {
+            // Try to receive responses without blocking
+            while let Ok(response) = rx.try_recv() {
+                responses.push(response);
+            }
+        }
+        
+        // Handle all received responses
+        for response in responses {
+            self.handle_grbl_response(response);
         }
         
         // Debug: Log that update is being called
