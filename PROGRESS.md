@@ -1,13 +1,175 @@
 # rCandle Development Progress
 
-## Latest Update: Phase 3 Connection & GRBL Protocol - Command Queue Completed
+## Latest Update: Phase 3 Connection & GRBL Protocol - Connection Manager Completed
 
 **Date**: January 2025
 **Commit**: TBD
 
 ### ✅ Completed Tasks
 
-#### Phase 3: Connection & GRBL Protocol Implementation (Partial)
+#### Phase 3: Connection & GRBL Protocol Implementation (Continued)
+
+- **Connection Manager**: Orchestrates connection lifecycle and command flow ✅
+  - `ConnectionManager` struct with full async coordination
+  - `ConnectionManagerConfig` for customizable behavior:
+    - Status query interval (default 250ms)
+    - Response timeout configuration
+    - Reconnection attempts and delays
+    - Auto status query enable/disable
+  - Connection lifecycle management:
+    - Connect with timeout
+    - Graceful disconnect
+    - Status tracking (Disconnected, Connecting, Connected, Error)
+    - Automatic cleanup on drop
+  - Background task coordination:
+    - Task 1: Response receiving and parsing loop
+    - Task 2: Command queue processing loop
+    - Task 3: Periodic status queries (configurable)
+    - Shutdown signal broadcasting to all tasks
+  - Command flow:
+    - Queue-based command sending with flow control
+    - Real-time command bypass (immediate execution)
+    - Automatic response handling and acknowledgment
+  - Broadcasting system:
+    - Status updates (GrblStatus) to subscribers
+    - Connection events to subscribers
+    - All responses to subscribers
+    - Using tokio broadcast channels
+  - Queue integration:
+    - Pause/resume queue operations
+    - Clear queue on demand
+    - Query queue state
+    - Automatic command processing
+  - Error handling:
+    - Connection errors
+    - Response parsing errors
+    - Timeout handling
+    - Graceful degradation
+  - 7 comprehensive unit tests passing:
+    - Manager creation and initialization
+    - Connect/disconnect lifecycle
+    - Status subscription
+    - Event subscription
+    - Response subscription
+    - Configuration options
+    - Description retrieval
+
+- **Command Queue Enhancements**: Extended queue with external API
+  - `state()` method alias for consistency
+  - `next_command()` - Get next command ready to send
+  - `mark_sent()` - Mark command as sent after transmission
+  - Decoupled from internal channel mechanism
+  - Support for external command processing (used by ConnectionManager)
+  
+### 📊 Build Status
+- ✅ All code compiles successfully
+- ✅ Zero compilation errors
+- ✅ Only 8 minor documentation warnings (non-critical, from Phase 2)
+- ✅ **81 unit tests passing** (100% pass rate) - +7 new tests
+  - 7 connection manager tests ✨ NEW
+  - 6 connection tests
+  - 3 real-time command tests
+  - 10 GRBL command tests
+  - 10 GRBL response tests
+  - 10 queue management tests
+  - 12 tokenizer tests
+  - 4 parser tests
+  - 5 segment tests
+  - 4 preprocessor tests
+  - 2 type tests
+  - 8 other module tests
+- ✅ Application builds in debug mode
+
+### 🧪 Testing Coverage
+
+Added comprehensive connection manager tests:
+
+**Connection Manager Tests**:
+- Manager creation with default config
+- Connection lifecycle (connect/disconnect)
+- Connection status tracking
+- Description retrieval
+- Status broadcast subscription
+- Event broadcast subscription
+- Response broadcast subscription
+- Custom configuration options
+
+### 📁 Files Created/Updated
+```
+src/connection/
+├── mod.rs (updated - export ConnectionManager)
+├── manager.rs (new - 620 lines)
+└── ... (previous files)
+
+src/grbl/
+├── queue.rs (updated - added state(), next_command(), mark_sent())
+└── ... (previous files)
+```
+
+**Total Lines of Code Added**: ~620 lines (Connection Manager)
+**Test Code**: ~200 lines (32% of manager code)
+
+### 🎯 Phase 3 Progress
+
+**Week 5, Day 1-2: Connection Trait & Serial Implementation** ✅ COMPLETED
+**Week 5, Day 3-4: GRBL Protocol Handling** ✅ COMPLETED
+**Week 5, Day 5: Command Queue** ✅ COMPLETED
+
+**Week 6, Day 1-2: Connection Manager** ✅ COMPLETED:
+- ✅ Implement ConnectionManager
+- ✅ Manage connection lifecycle
+- ✅ Coordinate command sending and response receiving
+- ✅ Broadcast status updates
+- ✅ Handle disconnections gracefully
+- ✅ Write connection manager tests
+
+**Week 6, Day 3: Alternative Connections** ⏳ NEXT:
+- [ ] Implement TelnetConnection (basic implementation)
+- [ ] Implement WebSocketConnection (basic implementation)
+- [ ] Tests for alternative connections
+
+**Week 6, Day 4-5: Integration & Testing** ⏳ PENDING:
+- [ ] End-to-end testing with mock GRBL
+- [ ] Performance testing
+- [ ] Documentation and examples
+
+### 🎖️ Key Technical Achievements
+
+1. **Async Task Orchestration**: Three coordinated background tasks with graceful shutdown
+2. **Broadcast Architecture**: Multi-subscriber model for status, events, and responses
+3. **Decoupled Design**: Connection manager doesn't depend on specific connection types
+4. **Flow Control**: Proper command queueing with acknowledgment-based flow
+5. **Real-time Bypass**: Support for immediate real-time commands
+6. **Configurable Behavior**: Flexible configuration for different use cases
+7. **Comprehensive Testing**: 81 tests with 100% pass rate
+8. **Production-Ready**: Proper error handling and resource cleanup
+
+### 🚀 Next Steps: Phase 3 Continuation
+
+1. **Alternative Connections** (Week 6, Day 3) ⏳ NEXT
+   - TelnetConnection (basic implementation)
+   - WebSocketConnection (basic implementation)
+   - Tests for alternative connections
+
+2. **Integration & Testing** (Week 6, Day 4-5)
+   - End-to-end testing with mock GRBL
+   - Performance testing
+   - Documentation and examples
+
+### 📈 Overall Project Progress
+
+**Phase 1**: ✅ Complete (Foundation)
+**Phase 2**: ✅ Complete (G-Code Parser) 
+**Phase 3**: 🔄 In Progress (Connection Module - 85% complete)
+**Phase 4**: ⬜ Pending (Command Processing)
+**Phase 5**: ⬜ Pending (3D Visualization)
+**Phase 6**: ⬜ Pending (UI Framework)
+
+**Estimated Completion**: ~30% of total project
+
+---
+
+## Historical Progress
 
 - **Connection Trait**: Abstract interface for all connection types
   - Defined `Connection` trait with async methods

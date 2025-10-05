@@ -353,6 +353,59 @@ impl CommandQueue {
     pub async fn get_state(&self) -> QueueState {
         *self.state.lock().await
     }
+    
+    /// Alias for get_state for consistency with other APIs
+    pub async fn state(&self) -> QueueState {
+        self.get_state().await
+    }
+    
+    /// Get the next command to send (if ready)
+    ///
+    /// Returns None if queue is empty, paused, or waiting for acknowledgment
+    pub async fn next_command(&self) -> Result<Option<GrblCommand>> {
+        // Check if we can send
+        let state = self.state.lock().await;
+        if *state != QueueState::Idle {
+            return Ok(None);
+        }
+        drop(state);
+        
+        // Get next command
+        let queue = self.queue.lock().await;
+        Ok(queue.front().map(|cmd| cmd.command.clone()))
+    }
+    
+    /// Mark the current command as sent
+    ///
+    /// Should be called after successfully sending the command returned by next_command
+    pub async fn mark_sent(&self) -> Result<()> {
+        // Get next command
+        let mut queue = self.queue.lock().await;
+        let mut cmd = match queue.pop_front() {
+            Some(cmd) => cmd,
+            None => return Err(Error::Queue("No command to mark as sent".to_string())),
+        };
+        
+        // Update statistics
+        let mut stats = self.stats.lock().await;
+        stats.current_length = queue.len();
+        stats.total_sent += 1;
+        drop(stats);
+        drop(queue);
+        
+        // Mark as sent
+        cmd.sent_at = Some(Instant::now());
+        
+        // Set current command
+        let mut current = self.current_command.lock().await;
+        *current = Some(cmd);
+        
+        // Update state
+        let mut state = self.state.lock().await;
+        *state = QueueState::WaitingForAck;
+        
+        Ok(())
+    }
 
     /// Get the current queue length
     pub async fn len(&self) -> usize {
