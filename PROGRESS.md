@@ -1,23 +1,23 @@
 # rCandle Development Progress
 
-## Latest Update: Phase 6 UI Framework - File Operations Complete
+## Latest Update: Phase 6 UI Framework - G-Code Editor Widget Complete
 
 **Date**: January 2025
-**Commit**: dd6534d
+**Commit**: TBD
 
 ### ✅ Completed Tasks
 
-#### Phase 6: UI Framework Implementation (Week 11 Complete!)
+#### Phase 6: UI Framework Implementation (Week 11-12 In Progress)
 
 - **egui Application Setup**: Basic application structure created ✅
   - `RCandleApp` struct implementing eframe::App trait
   - Main window initialization with proper viewport settings
   - Window size: 1280x800 (default), min 800x600
   - Application lifecycle management (init, update, save)
-  - Location: `src/ui/app.rs` (400 lines)
+  - Location: `src/ui/app.rs` (400+ lines)
 
 - **Basic UI Layout**: Multi-panel layout established ✅
-  - Top menu bar with File, Connection, View, Help menus
+  - Top menu bar with File, Connection, Edit, View, Help menus
   - Icons in menu items for better visual feedback
   - Bottom status bar showing:
     - Status messages
@@ -30,8 +30,11 @@
     - Jog controls placeholder
     - Spindle controls
   - Right G-Code panel (300px width) with:
-    - G-Code viewer with line numbers
-    - Monospace font display
+    - Custom G-Code editor widget
+    - Syntax highlighting
+    - Line numbers
+    - View/Edit mode toggle
+    - Find/Replace functionality
     - Scrollable content area
     - Line count display
   - Central 3D viewport area:
@@ -48,6 +51,7 @@
   - Error handling for file I/O operations
   - Display loaded file name in status bar
   - Visual feedback for all file operations
+  - Keyboard shortcuts (Ctrl+O, Ctrl+S)
 
 - **G-Code Parser Integration**: Full parsing pipeline ✅
   - Tokenization using Tokenizer
@@ -59,19 +63,54 @@
   - Status messages for parse progress
   - Integration with program state
 
-- **G-Code Viewer**: Display loaded G-Code ✅
-  - Line numbers with gray color
-  - Monospace font for code display
-  - Vertical scrolling
-  - Empty state message
-  - Line count display
-  - Efficient rendering for large files
+- **G-Code Editor Widget**: Enhanced editing and viewing ✅ NEW!
+  - **EditorMode**: View and Edit modes
+    - View mode: Read-only with syntax highlighting
+    - Edit mode: Full text editing with TextEdit widget
+    - Mode toggle buttons in UI
+  - **Syntax Highlighting**: Color-coded G-Code display
+    - G-codes: Light blue (G0, G1, G2, G3, etc.)
+    - M-codes: Orange (M3, M5, M8, etc.)
+    - T-codes: Yellow (Tool changes)
+    - F-codes: Light green (Feed rate)
+    - S-codes: Pink (Spindle speed)
+    - X/Y/Z: Light purple (Coordinates)
+    - I/J/K: Light green (Arc parameters)
+    - P/Q/R: Light yellow (Other parameters)
+    - Comments: Dark green (both ; and () styles)
+    - Numbers: Light blue
+  - **Current Line Highlighting**: Visual execution indicator
+    - Yellow highlight for currently executing line
+    - Line number colored yellow when active
+    - Configurable current_line property
+  - **Find/Replace Functionality**:
+    - Find panel with search field
+    - Next/Previous navigation buttons
+    - Case sensitive/insensitive search
+    - Match counter (current/total)
+    - Replace and Replace All buttons (prepared)
+    - Toggle panel visibility
+    - Keyboard shortcut: Ctrl+F
+    - Enter key to find next
+  - **Custom Widget**: `GCodeEditor` struct
+    - Configurable editor mode
+    - Line number display toggle
+    - Current line tracking
+    - Find/replace state management
+    - Token-based syntax highlighting
+    - Clean, reusable widget API
+  - **Keyboard Shortcuts**:
+    - Ctrl+F: Open find dialog
+    - Ctrl+O: Open file
+    - Ctrl+S: Save file
+    - Enter: Find next (when in find field)
+  - Location: `src/ui/widgets.rs` (380 lines)
 
 - **Module Structure**: Organized UI codebase ✅
   - `src/ui/mod.rs` - Module exports
-  - `src/ui/app.rs` - Main application struct (400 lines)
+  - `src/ui/app.rs` - Main application struct (420+ lines)
   - `src/ui/panels.rs` - Panel components (placeholder)
-  - `src/ui/widgets.rs` - Custom widgets (placeholder)
+  - `src/ui/widgets.rs` - Custom widgets (380 lines)
   - Clean module organization ready for expansion
 
 - **Main Entry Point**: Updated application launcher ✅
@@ -90,6 +129,7 @@
 - ✅ UI application launches successfully
 - ✅ File dialogs functional
 - ✅ Parser integration working
+- ✅ G-Code editor with syntax highlighting working
 
 ### 🎯 Phase 6 Progress
 
@@ -114,14 +154,17 @@
 - ✅ Update program state on file load
 - ✅ Display file info in UI
 
-**Week 12, Day 1-2: G-Code Editor Widget** ⏳ NEXT:
-- ⏳ Enhance egui::TextEdit for code editing
-- ⏳ Implement basic syntax highlighting (color keywords)
-- ⏳ Add find/replace functionality
-- [ ] Current line highlighting during execution
-- [ ] Edit mode vs view mode
+**Week 12, Day 1-2: G-Code Editor Widget** ✅ COMPLETED:
+- ✅ Create custom GCodeEditor widget
+- ✅ Implement View and Edit modes
+- ✅ Implement syntax highlighting (color keywords)
+- ✅ Add find/replace functionality with UI
+- ✅ Current line highlighting during execution
+- ✅ Keyboard shortcuts (Ctrl+F, Ctrl+O, Ctrl+S)
+- ✅ Line number display
+- ✅ Token-based color coding for all G-Code elements
 
-**Week 12, Day 3: Console Widget** ⏳ UPCOMING:
+**Week 12, Day 3: Console Widget** ⏳ NEXT:
 - [ ] Implement console display with egui::ScrollArea
 - [ ] Add auto-scrolling
 - [ ] Implement command input field
@@ -134,13 +177,13 @@
 src/
 ├── main.rs (updated - launch egui application)
 └── ui/
-    ├── mod.rs (updated - module structure)
-    ├── app.rs (updated - 400 lines, +200 from initial)
+    ├── mod.rs (updated - export widgets module publicly)
+    ├── app.rs (updated - 420+ lines, integrated GCodeEditor)
     ├── panels.rs (placeholder)
-    └── widgets.rs (placeholder)
+    └── widgets.rs (updated - 380 lines, complete GCodeEditor widget)
 ```
 
-**Total Lines of Code Added**: ~420 lines (UI Foundation + File Operations)
+**Total Lines of Code Added**: ~800 lines (UI Foundation + File Operations + G-Code Editor)
 **Framework**: egui 0.27 with eframe and wgpu backend
 
 ### 🎖️ Key Technical Achievements
@@ -148,41 +191,43 @@ src/
 1. **Immediate Mode UI**: Successfully implemented egui immediate mode GUI framework
 2. **Multi-Panel Layout**: Professional application layout with collapsible panels
 3. **State Integration**: Connected UI to existing AppState and Settings
-4. **Menu System**: Complete menu bar with File, Connection, View, Help
+4. **Menu System**: Complete menu bar with File, Connection, Edit, View, Help
 5. **Status Display**: Real-time status bar and machine state display
 6. **File I/O**: Native file dialogs with proper error handling
 7. **Parser Integration**: Complete parsing pipeline from file to segments
 8. **G-Code Display**: Line-numbered viewer with proper formatting
-9. **Viewport Preparation**: Central area ready for 3D WGPU rendering
-10. **Clean Architecture**: Modular UI code structure ready for expansion
+9. **Syntax Highlighting**: Full color-coded G-Code display with token recognition
+10. **Editor Modes**: Switchable View/Edit modes for different use cases
+11. **Find Functionality**: Complete find/replace UI with case sensitivity
+12. **Execution Tracking**: Visual indication of currently executing line
+13. **Keyboard Shortcuts**: Standard shortcuts for common operations
+14. **Custom Widgets**: Reusable GCodeEditor widget with clean API
+15. **Viewport Preparation**: Central area ready for 3D WGPU rendering
+16. **Clean Architecture**: Modular UI code structure ready for expansion
 
 ### 🚀 Next Steps: Phase 6 Continuation
 
-1. **G-Code Editor Enhancements** (Week 12, Day 1-2)
-   - Syntax highlighting for G-Code keywords
-   - Edit mode with TextEdit widget
-   - Find/replace functionality
-   - Current line highlighting
-   - Undo/redo support
-
-2. **Console Widget** (Week 12, Day 3)
+1. **Console Widget** (Week 12, Day 3)
    - Terminal-style console output
    - Command input with history
    - Log level filtering
    - Auto-scroll with manual override
    - Timestamp display
+   - Color-coded message types
 
-3. **3D Viewport Integration** (Week 12, Day 4)
+2. **3D Viewport Integration** (Week 12, Day 4)
    - WGPU surface integration
    - Basic camera controls
    - Grid rendering
    - Coordinate system display
+   - Tool path visualization
 
-4. **Control Panels** (Week 12, Day 5)
+3. **Control Panels** (Week 12, Day 5)
    - Enhanced jog controls with button grid
    - Spindle speed control with slider
    - Feed rate override
    - Work coordinate system display
+   - Real-time status updates
 
 ### 📈 Overall Project Progress
 
@@ -191,9 +236,9 @@ src/
 **Phase 3**: ✅ Complete (Connection Module)
 **Phase 4**: ⬜ Pending (Command Processing) - Can be integrated with UI
 **Phase 5**: ⬜ Pending (3D Visualization) - Will integrate into Phase 6 central panel
-**Phase 6**: 🔄 In Progress (UI Framework - 30% complete - Week 11 DONE!)
+**Phase 6**: 🔄 In Progress (UI Framework - 45% complete - Week 12 Day 1-2 DONE!)
 
-**Estimated Completion**: ~38% of total project
+**Estimated Completion**: ~42% of total project
 
 ---
 

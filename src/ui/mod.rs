@@ -4,6 +4,6 @@
 
 mod app;
 mod panels;
-mod widgets;
+pub mod widgets;
 
 pub use app::RCandleApp;

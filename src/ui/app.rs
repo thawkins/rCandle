@@ -4,6 +4,7 @@ use crate::{
     parser::{Parser, Preprocessor, Tokenizer},
     settings::Settings,
     state::AppState,
+    ui::widgets::GCodeEditor,
 };
 use std::path::PathBuf;
 
@@ -23,6 +24,8 @@ pub struct RCandleApp {
     parser: Parser,
     /// Preprocessor instance
     preprocessor: Preprocessor,
+    /// G-Code editor widget
+    gcode_editor: GCodeEditor,
 }
 
 impl RCandleApp {
@@ -38,6 +41,9 @@ impl RCandleApp {
         let parser = Parser::new();
         let preprocessor = Preprocessor::new();
         
+        // Create G-Code editor
+        let gcode_editor = GCodeEditor::new();
+        
         tracing::info!("rCandle UI initialized");
         
         Self {
@@ -48,6 +54,7 @@ impl RCandleApp {
             gcode_content: String::new(),
             parser,
             preprocessor,
+            gcode_editor,
         }
     }
 
@@ -170,6 +177,22 @@ impl RCandleApp {
 
 impl eframe::App for RCandleApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Handle keyboard shortcuts
+        ctx.input(|i| {
+            // Ctrl+F to open find dialog
+            if i.modifiers.command && i.key_pressed(egui::Key::F) {
+                self.gcode_editor.toggle_find_replace();
+            }
+            // Ctrl+O to open file
+            if i.modifiers.command && i.key_pressed(egui::Key::O) {
+                self.open_file();
+            }
+            // Ctrl+S to save file
+            if i.modifiers.command && i.key_pressed(egui::Key::S) {
+                self.save_file();
+            }
+        });
+        
         // Top panel with menu bar
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
@@ -199,6 +222,13 @@ impl eframe::App for RCandleApp {
                     }
                     if ui.button("⏸ Disconnect").clicked() {
                         self.status_message = "Disconnected".to_string();
+                        ui.close_menu();
+                    }
+                });
+                
+                ui.menu_button("Edit", |ui| {
+                    if ui.button("🔍 Find... (Ctrl+F)").clicked() {
+                        self.gcode_editor.toggle_find_replace();
                         ui.close_menu();
                     }
                 });
@@ -321,33 +351,8 @@ impl eframe::App for RCandleApp {
                 ui.heading("G-Code");
                 ui.separator();
                 
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    if self.gcode_content.is_empty() {
-                        ui.label("No G-Code loaded");
-                        ui.label("");
-                        ui.label("Use File → Open to load a G-Code file");
-                    } else {
-                        // Display G-Code with line numbers
-                        egui::ScrollArea::vertical()
-                            .id_source("gcode_scroll")
-                            .show(ui, |ui| {
-                                ui.style_mut().override_text_style = Some(egui::TextStyle::Monospace);
-                                
-                                for (line_num, line) in self.gcode_content.lines().enumerate() {
-                                    ui.horizontal(|ui| {
-                                        ui.label(
-                                            egui::RichText::new(format!("{:4} ", line_num + 1))
-                                                .color(egui::Color32::DARK_GRAY)
-                                        );
-                                        ui.label(line);
-                                    });
-                                }
-                            });
-                        
-                        ui.separator();
-                        ui.label(format!("Lines: {}", self.gcode_content.lines().count()));
-                    }
-                });
+                // Use the custom GCodeEditor widget
+                self.gcode_editor.show(ui, &mut self.gcode_content);
             });
 
         // Central panel - 3D viewport
