@@ -1,6 +1,6 @@
 # rCandle Development Progress
 
-## Latest Update: Phase 3 Connection & GRBL Protocol - In Progress
+## Latest Update: Phase 3 Connection & GRBL Protocol - Command Queue Completed
 
 **Date**: January 2025
 **Commit**: TBD
@@ -55,6 +55,21 @@
   - Command descriptions for UI display
   - 3 real-time command tests passing
 
+- **GRBL Protocol - Command Queue**: Flow control and command management
+  - `CommandQueue` struct with bounded queue implementation
+  - `QueueState` enum: Idle, Active, Paused, WaitingForAck
+  - `QueueStats` for tracking queue performance
+  - Async command queuing with tokio
+  - Flow control (wait for "ok" before sending next)
+  - Command timeout detection and handling
+  - Unique command ID tracking
+  - Response handling (OK, Error, Alarm)
+  - Pause/resume queue functionality
+  - Queue clearing and statistics
+  - Average execution time tracking
+  - Support for up to 128 queued commands (configurable)
+  - 10 command queue tests passing
+
 - **GRBL Protocol - Responses**: Response parsing and status reports
   - `GrblResponse` enum for all response types:
     - OK/Error/Alarm responses
@@ -79,12 +94,13 @@
 ### 📊 Build Status
 - ✅ All code compiles successfully
 - ✅ Zero compilation errors
-- ✅ Only 6 minor documentation warnings (non-critical, from Phase 2)
-- ✅ **64 unit tests passing** (100% pass rate)
-  - 6 connection tests (new)
-  - 3 real-time command tests (new)
-  - 10 GRBL command tests (new)
-  - 10 GRBL response tests (new)
+- ✅ Only 8 minor documentation warnings (non-critical, from Phase 2)
+- ✅ **74 unit tests passing** (100% pass rate)
+  - 6 connection tests
+  - 3 real-time command tests
+  - 10 GRBL command tests
+  - 10 GRBL response tests
+  - 10 queue management tests (new)
   - 12 tokenizer tests
   - 4 parser tests
   - 5 segment tests
@@ -130,6 +146,17 @@ Comprehensive test coverage across connection and GRBL modules:
 - Machine state from string conversion
 - Error and alarm message lookup
 
+**GRBL Queue Tests**:
+- Queue creation and initialization
+- Command enqueuing
+- Queue capacity enforcement
+- OK response handling and statistics
+- Pause and resume functionality
+- Queue clearing
+- Statistics tracking and reset
+- Error response handling
+- Alarm response handling (auto-pause)
+
 ### 📁 Files Created/Updated
 ```
 src/connection/
@@ -141,14 +168,18 @@ src/grbl/
 ├── mod.rs (updated - module exports)
 ├── commands.rs (new - 320 lines)
 ├── realtime.rs (new - 175 lines)
-└── responses.rs (new - 530 lines)
+├── responses.rs (new - 530 lines)
+└── queue.rs (new - 520 lines)
+
+src/utils/
+└── error.rs (updated - added Queue and Timeout error types)
 
 Cargo.toml (updated - added async-trait dependency)
 src/lib.rs (updated - export Error and Result types)
 ```
 
-**Total Lines of Code Added**: ~1,445 lines
-**Test Code**: ~430 lines (30% of total)
+**Total Lines of Code Added**: ~1,965 lines
+**Test Code**: ~540 lines (27% of total)
 
 ### 🎯 Phase 3 Progress
 
@@ -169,7 +200,19 @@ src/lib.rs (updated - export Error and Result types)
 - ✅ Implement GRBL settings structure
 - ✅ Write protocol parsing tests (100% pass rate)
 
-**Week 5, Day 5: Command Queue** ⏳ NEXT:
+**Week 5, Day 5: Command Queue** ✅ COMPLETED:
+- ✅ Implement command queue (bounded channel)
+- ✅ Handle command acknowledgments
+- ✅ Implement flow control (wait for "ok")
+- ✅ Handle command timeouts
+- ✅ Write queue management tests
+- ✅ Queue state management (Idle, Active, Paused, WaitingForAck)
+- ✅ Command tracking with unique IDs
+- ✅ Queue statistics (queued, sent, completed, timeouts, failed)
+- ✅ Average execution time calculation
+- ✅ 10 comprehensive queue tests passing
+
+**Week 6, Day 1-2: Connection Manager** ⏳ NEXT:
 - [ ] Implement command queue (bounded channel)
 - [ ] Handle command acknowledgments
 - [ ] Implement flow control (wait for "ok")
@@ -184,30 +227,23 @@ src/lib.rs (updated - export Error and Result types)
 4. **Status Parsing**: Full status report parsing including position, overrides, and pin states
 5. **Real-time Commands**: Support for all 23 GRBL real-time commands
 6. **Type Safety**: Strong typing for all GRBL commands, responses, and states
-7. **Extensive Testing**: 29 new tests with 100% pass rate
+7. **Command Queue**: Production-ready queue with flow control and timeout handling
+8. **Extensive Testing**: 39 new tests with 100% pass rate
 
 ### 🚀 Next Steps: Phase 3 Continuation
 
-1. **Command Queue** (Week 5, Day 5)
-   - Implement bounded channel for command queuing
-   - Flow control with "ok" acknowledgments
-   - Command timeout handling
-   - Priority queue for real-time commands
-   - Queue management tests
-
-2. **Connection Manager** (Week 6, Day 1-2)
+1. **Connection Manager** (Week 6, Day 1-2) ⏳ NEXT
    - Coordinate command sending and response receiving
    - Broadcast status updates
    - Handle disconnections gracefully
    - Connection lifecycle management
    - Integration tests
-
-3. **Alternative Connections** (Week 6, Day 3)
+2. **Alternative Connections** (Week 6, Day 3)
    - TelnetConnection (basic implementation)
    - WebSocketConnection (basic implementation)
    - Tests for alternative connections
 
-4. **Integration & Testing** (Week 6, Day 4-5)
+3. **Integration & Testing** (Week 6, Day 4-5)
    - End-to-end testing with mock GRBL
    - Performance testing
    - Documentation and examples
@@ -216,12 +252,12 @@ src/lib.rs (updated - export Error and Result types)
 
 **Phase 1**: ✅ Complete (Foundation)
 **Phase 2**: ✅ Complete (G-Code Parser) 
-**Phase 3**: 🔄 In Progress (Connection Module - 60% complete)
+**Phase 3**: 🔄 In Progress (Connection Module - 70% complete)
 **Phase 4**: ⬜ Pending (Command Processing)
 **Phase 5**: ⬜ Pending (3D Visualization)
 **Phase 6**: ⬜ Pending (UI Framework)
 
-**Estimated Completion**: ~20% of total project
+**Estimated Completion**: ~25% of total project
 
 ---
 

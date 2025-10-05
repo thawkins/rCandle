@@ -47,8 +47,12 @@ pub enum Error {
     NotConnected,
 
     /// Timeout
-    #[error("Operation timed out")]
-    Timeout,
+    #[error("Timeout: {0}")]
+    Timeout(String),
+
+    /// Queue error
+    #[error("Queue error: {0}")]
+    Queue(String),
 
     /// Generic error
     #[error("{0}")]
@@ -89,5 +93,15 @@ impl Error {
     /// Create a generic error
     pub fn generic<S: Into<String>>(msg: S) -> Self {
         Error::Generic(msg.into())
+    }
+
+    /// Create a queue error
+    pub fn queue<S: Into<String>>(msg: S) -> Self {
+        Error::Queue(msg.into())
+    }
+
+    /// Create a timeout error
+    pub fn timeout<S: Into<String>>(msg: S) -> Self {
+        Error::Timeout(msg.into())
     }
 }

@@ -5,7 +5,9 @@
 mod commands;
 mod responses;
 mod realtime;
+mod queue;
 
 pub use commands::{GrblCommand, GrblSettings};
 pub use responses::{GrblResponse, GrblStatus, MachineState, Position};
 pub use realtime::RealtimeCommand;
+pub use queue::{CommandQueue, QueueState, QueueStats};
