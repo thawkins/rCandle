@@ -202,6 +202,7 @@ This is the same license as the original Candle application, ensuring compatibil
 
 - **Original Candle**: [Denvi/Candle](https://github.com/Denvi/Candle) by Denis Ravilevich Hayrullin
 - **GRBL**: [gnea/grbl](https://github.com/gnea/grbl)
+- **GRBL Documentation**: [GRBL 1.1f Customized](https://github.com/craftweeks/grbl-1.1f.customized-for-laser/tree/master/doc/markdown)
 - **Rust Community**: For excellent crates and documentation
 
 ## Support
@@ -209,6 +210,25 @@ This is the same license as the original Candle application, ensuring compatibil
 - **Issues**: [GitHub Issues](https://github.com/yourusername/rCandle/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/yourusername/rCandle/discussions)
 - **Documentation**: See `docs/` directory
+
+## Key Resources
+
+### GRBL Firmware Documentation
+- **Primary Documentation**: [GRBL 1.1f Markdown Docs](https://github.com/craftweeks/grbl-1.1f.customized-for-laser/tree/master/doc/markdown)
+  - Commands reference (G-codes, M-codes, $ commands)
+  - Serial interface protocol
+  - Configuration settings
+  - Real-time jogging
+  - Laser mode features
+- **GRBL v1.1 Wiki**: https://github.com/gnea/grbl/wiki
+- **GRBL v0.9 Wiki**: https://github.com/grbl/grbl/wiki
+
+### Project Documentation
+- [Specification](.specify/SPECIFICATION.md) - Complete requirements and design
+- [Architecture](.specify/ARCHITECTURE.md) - Technical architecture details
+- [Roadmap](.specify/ROADMAP.md) - 20-week development plan
+- [Dependencies](.specify/DEPENDENCIES.md) - Crate selection rationale
+- [Migration Guide](.specify/MIGRATION_GUIDE.md) - C++ to Rust patterns
 
 ## Acknowledgments
 

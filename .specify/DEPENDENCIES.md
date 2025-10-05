@@ -20,8 +20,11 @@ This document analyzes the key Rust crates (dependencies) used in rCandle, their
 ### 2. Serial Communication
 
 #### Selected: `serialport` (v4.3+)
-- **Purpose**: Cross-platform serial port access
+- **Purpose**: Cross-platform serial port access for GRBL communication
 - **Why**: Most mature Rust serial port library, tokio compatible
+- **GRBL Protocol Support**: Implements serial communication following GRBL interface specifications
+  - Documented at: https://github.com/craftweeks/grbl-1.1f.customized-for-laser/blob/master/doc/markdown/interface.md
+  - Supports real-time commands, status queries, and command streaming
 - **Alternatives**:
   - `tokio-serial`: Wrapper around serialport, could be used in addition
   - Direct OS APIs: Too much platform-specific code

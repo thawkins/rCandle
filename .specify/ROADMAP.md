@@ -167,11 +167,13 @@ Implement serial communication with GRBL controllers
   - [ ] Write serial connection tests (with mocks)
 
 - [ ] **Day 3-4**: GRBL Protocol Handling
+  - [ ] Study GRBL protocol documentation (interface.md, commands.md)
   - [ ] Implement GRBL command formatting
   - [ ] Parse GRBL responses (ok, error:X)
   - [ ] Parse GRBL status reports (<...>)
   - [ ] Parse GRBL alarms and error messages
   - [ ] Handle real-time commands (?, !, ~, 0x18)
+  - [ ] Implement GRBL settings ($$) parsing
   - [ ] Write protocol parsing tests
 
 - [ ] **Day 5**: Command Queue

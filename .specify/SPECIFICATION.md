@@ -14,6 +14,19 @@
 ### Purpose
 The Candle program is designed for controlling CNC machines equipped with GRBL firmware using a PC. It supports 3-axis milling machines and laser plotters with comprehensive G-Code manipulation and visualization capabilities.
 
+### GRBL Firmware Reference
+- **Primary GRBL Documentation**: https://github.com/craftweeks/grbl-1.1f.customized-for-laser/tree/master/doc/markdown
+- **Available Documentation**:
+  - `commands.md` - Complete GRBL command reference
+  - `interface.md` - Serial interface protocol specifications
+  - `settings.md` - GRBL configuration settings ($$ commands)
+  - `jogging.md` - Real-time jogging protocol
+  - `laser_mode.md` - Laser-specific features and M-codes
+  - `change_summary.md` - Version changes and updates
+- **Additional Resources**:
+  - GRBL v1.1 Wiki: https://github.com/gnea/grbl/wiki
+  - GRBL v0.9 Wiki: https://github.com/grbl/grbl/wiki
+
 ## Core Requirements
 
 ### 1. Functional Requirements
@@ -26,7 +39,12 @@ The Candle program is designed for controlling CNC machines equipped with GRBL f
   - WebSocket
 - Real-time status monitoring
 - Command sending and response handling
-- Support for GRBL v0.9, v1.1, and newer versions
+- Support for GRBL v0.9, v1.1, and newer versions (including laser-customized variants)
+- Implementation based on official GRBL protocol documentation:
+  - Interface protocol: command/response format, real-time commands
+  - Settings management: $$ configuration system
+  - Jogging protocol: real-time axis movement
+  - Laser mode: M3/M4/M5 commands, dynamic power control
 
 #### 1.2 G-Code Program Management
 - Load G-Code files from disk
@@ -671,12 +689,27 @@ The rCandle migration will be considered successful when:
 
 ### 17. References
 
+#### Original Application
 - Original Candle repository: https://github.com/Denvi/Candle
 - Original user manual: https://github.com/Denvi/Candle/blob/master/doc/help_en.html
-- GRBL documentation: https://github.com/gnea/grbl/wiki
+
+#### GRBL Firmware Documentation
+- **Primary GRBL 1.1f Documentation**: https://github.com/craftweeks/grbl-1.1f.customized-for-laser/tree/master/doc/markdown
+  - Commands reference (G-codes, M-codes, $-commands)
+  - Serial interface protocol and communication
+  - Configuration settings and parameters
+  - Real-time jogging and override commands
+  - Laser mode features and specifications
+- GRBL v1.1 Wiki: https://github.com/gnea/grbl/wiki
+- GRBL v0.9 Wiki: https://github.com/grbl/grbl/wiki
+
+#### Rust Ecosystem
 - Rust serialport crate: https://docs.rs/serialport/
-- Iced UI framework: https://github.com/iced-rs/iced
+- egui UI framework: https://github.com/emilk/egui
+- eframe application framework: https://docs.rs/eframe/
 - WGPU graphics: https://wgpu.rs/
+- Tokio async runtime: https://tokio.rs/
+- nom parser combinators: https://docs.rs/nom/
 
 ---
 

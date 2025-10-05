@@ -155,7 +155,14 @@ Practical guide for translating C++/Qt code to Rust:
 - User Manual: https://github.com/Denvi/Candle/blob/master/doc/help_en.html
 - Version: 10.10.2
 
-### GRBL
+### GRBL Firmware Documentation
+- **Primary Documentation**: https://github.com/craftweeks/grbl-1.1f.customized-for-laser/tree/master/doc/markdown
+  - `commands.md` - Complete G-code and $ command reference
+  - `interface.md` - Serial protocol and communication specs
+  - `settings.md` - GRBL configuration parameters
+  - `jogging.md` - Real-time jogging protocol
+  - `laser_mode.md` - Laser-specific features
+  - `change_summary.md` - Version change history
 - GRBL v1.1 Wiki: https://github.com/gnea/grbl/wiki
 - GRBL v0.9 Wiki: https://github.com/grbl/grbl/wiki
 
@@ -163,7 +170,8 @@ Practical guide for translating C++/Qt code to Rust:
 - Rust Book: https://doc.rust-lang.org/book/
 - Tokio Tutorial: https://tokio.rs/tokio/tutorial
 - WGPU Guide: https://wgpu.rs/
-- Iced Documentation: https://docs.rs/iced/
+- egui Documentation: https://docs.rs/egui/
+- eframe Documentation: https://docs.rs/eframe/
 
 ## Version History
 

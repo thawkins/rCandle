@@ -239,6 +239,16 @@ fn bench_parser(c: &mut Criterion) { /* ... */ }
 - 📦 Dependencies: `.specify/DEPENDENCIES.md`
 - 🔄 Migration: `.specify/MIGRATION_GUIDE.md`
 
+### GRBL Documentation
+- 📘 GRBL 1.1f Documentation: https://github.com/craftweeks/grbl-1.1f.customized-for-laser/tree/master/doc/markdown
+  - Commands reference
+  - Interface protocol
+  - Settings guide
+  - Jogging protocol
+  - Laser mode
+- 📗 GRBL v1.1 Wiki: https://github.com/gnea/grbl/wiki
+- 📕 GRBL v0.9 Wiki: https://github.com/grbl/grbl/wiki
+
 ## Getting Help
 
 1. Check specification documents
