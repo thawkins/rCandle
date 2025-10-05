@@ -75,12 +75,14 @@ None of the UI controls (buttons, text fields, etc.) are responding to mouse or 
 - [ ] Implement safety interlocks
 
 ### Execution Control
-- [ ] Implement play/pause/stop for program execution
-- [ ] Add step mode execution
-- [ ] Handle feed/rapid/spindle overrides
-- [ ] Monitor execution progress
-- [ ] Display current line being executed
-- [ ] Show estimated time remaining
+- [x] Implement play/pause/stop for program execution
+- [x] Add step mode execution
+- [x] Handle feed/rapid/spindle overrides (UI implemented)
+- [x] Monitor execution progress (UI implemented)
+- [x] Display current line being executed
+- [x] Show estimated time remaining
+- [ ] Connect execution controls to GRBL connection manager
+- [ ] Handle execution errors and recovery
 
 ### Status Monitoring
 - [ ] Parse and display machine position (WPos, MPos)
@@ -97,6 +99,17 @@ None of the UI controls (buttons, text fields, etc.) are responding to mouse or 
 - [ ] Custom macro support
 - [ ] Keyboard shortcuts for common operations
 - [ ] Customizable button layouts
+- [x] Settings dialog with comprehensive configuration options
+
+### UI Polish
+- [x] Settings dialog implementation
+- [x] Tabbed settings interface
+- [x] Form validation through widget constraints
+- [x] Settings persistence
+- [ ] Theme switching (dark/light mode from settings)
+- [ ] Custom fonts and sizing
+- [ ] Keyboard shortcut configuration
+- [ ] Layout customization
 
 ### 3D Visualization
 - [x] Basic 3D renderer infrastructure
@@ -148,6 +161,8 @@ None of the UI controls (buttons, text fields, etc.) are responding to mouse or 
 - ✅ Jog controls
 - ✅ File open/save dialogs
 - ✅ Settings management
+- ✅ Program execution controls (UI)
+- ✅ Settings dialog with tabbed interface
 
 ## Future Enhancements
 - WebSocket and Telnet connection support (infrastructure exists)
