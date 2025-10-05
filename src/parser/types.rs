@@ -5,8 +5,11 @@ use std::fmt;
 /// Represents a 3D point in space
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Point3D {
+    /// X coordinate
     pub x: f64,
+    /// Y coordinate
     pub y: f64,
+    /// Z coordinate
     pub z: f64,
 }
 

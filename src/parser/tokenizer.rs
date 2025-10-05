@@ -24,7 +24,12 @@ pub enum Token {
     /// F command (feed rate)
     FCommand(f64),
     /// Parameter with letter and value (e.g., X10.5, Y-20.0)
-    Parameter { letter: char, value: f64 },
+    Parameter {
+        /// Parameter letter (X, Y, Z, etc.)
+        letter: char,
+        /// Parameter value
+        value: f64
+    },
     /// Line number (N)
     LineNumber(u32),
     /// Comment text (without delimiters)

@@ -11,7 +11,12 @@ pub enum ScriptCommand {
     /// Send a raw GRBL command
     SendCommand(String),
     /// Jog in a specific direction
-    Jog { axis: String, distance: f64 },
+    Jog {
+        /// Axis to jog (X, Y, or Z)
+        axis: String,
+        /// Distance to jog in mm
+        distance: f64
+    },
     /// Home the machine
     Home,
     /// Zero an axis

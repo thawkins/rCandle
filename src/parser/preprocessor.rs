@@ -5,7 +5,9 @@
 //! - Unit conversion
 //! - Optimization (removing unnecessary rapids)
 
-use super::segment::{ArcDirection, Segment, SegmentType};
+use super::segment::{Segment, SegmentType};
+#[cfg(test)]
+use super::segment::ArcDirection;
 use super::types::{Point3D, Units};
 use crate::utils::error::Result;
 

@@ -27,10 +27,12 @@ struct QueuedCommand {
     /// The command to send
     command: GrblCommand,
     /// When the command was queued
+    #[allow(dead_code)] // Used for metrics and debugging
     queued_at: Instant,
     /// When the command was sent (if sent)
     sent_at: Option<Instant>,
     /// Unique command ID for tracking
+    #[allow(dead_code)] // Used for command tracking
     id: u64,
 }
 

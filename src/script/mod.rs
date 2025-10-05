@@ -18,6 +18,7 @@ pub use user_commands::{UserCommand, UserCommandLibrary};
 /// Script context containing application state and API access
 pub struct ScriptContext {
     engine: Engine,
+    #[allow(dead_code)] // API for future script functionality
     api: Arc<ScriptApi>,
 }
 
