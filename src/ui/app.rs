@@ -7,7 +7,7 @@ use crate::{
     renderer::{Renderer, ViewPreset},
     script::{ScriptLibrary, UserCommandLibrary, UserScript},
     settings::Settings,
-    state::{AppState, ExecutionState},
+    state::{AppState, ExecutionState, MachineStatus},
     ui::widgets::{Console, GCodeEditor},
 };
 use std::path::PathBuf;
@@ -475,6 +475,15 @@ impl RCandleApp {
         self.send_command(command);
         self.status_message = "Homing...".to_string();
         tracing::info!("Home command");
+    }
+    
+    /// Send unlock command ($X) to clear alarm state
+    fn send_unlock_command(&mut self) {
+        let command = GrblCommand::KillAlarmLock;
+        self.send_command(command);
+        self.status_message = "Unlocking alarm...".to_string();
+        self.console.info("Sending unlock command ($X)".to_string());
+        tracing::info!("Unlock command ($X)");
     }
     
     /// Zero a specific axis
@@ -1785,7 +1794,33 @@ impl eframe::App for RCandleApp {
                 
                 // Jog controls - Enhanced with button grid
                 ui.group(|ui| {
-                    ui.label("Jog Controls");
+                    ui.horizontal(|ui| {
+                        ui.label("Jog Controls");
+                        
+                        // Machine lock status indicator
+                        let machine_status = self.app_state.machine.read().status;
+                        let is_alarm = matches!(machine_status, MachineStatus::Alarm);
+                        
+                        if is_alarm {
+                            ui.add_space(10.0);
+                            ui.colored_label(
+                                egui::Color32::from_rgb(255, 100, 100), // Red
+                                "🔒 LOCKED"
+                            );
+                        } else {
+                            ui.add_space(10.0);
+                            ui.colored_label(
+                                egui::Color32::from_rgb(100, 255, 100), // Green
+                                "🔓 READY"
+                            );
+                        }
+                        
+                        // Show the current machine status
+                        ui.add_space(5.0);
+                        ui.label(format!("({})", machine_status));
+                    });
+                    
+                    ui.add_space(5.0);
                     
                     // Jog step size selector
                     ui.horizontal(|ui| {
@@ -1823,6 +1858,13 @@ impl eframe::App for RCandleApp {
                         }
                         if ui.button("X+ →").clicked() {
                             self.send_jog_command(self.jog_step_size, 0.0, 0.0);
+                        }
+                    });
+                    
+                    ui.horizontal(|ui| {
+                        ui.add_space(35.0); // Indent for alignment
+                        if ui.button("🔓 Unlock").clicked() {
+                            self.send_unlock_command();
                         }
                     });
                     
