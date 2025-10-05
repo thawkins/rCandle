@@ -113,17 +113,17 @@ members = []
 name = "rcandle"
 path = "src/main.rs"
 
-# Optional: CLI tool for testing
-[[bin]]
-name = "rcandle-cli"
-path = "src/bin/cli.rs"
-required-features = []
+# Optional: CLI tool for testing (uncomment when src/bin/cli.rs is created)
+# [[bin]]
+# name = "rcandle-cli"
+# path = "src/bin/cli.rs"
+# required-features = []
 
-# Benchmarks
-[[bench]]
-name = "parser_bench"
-harness = false
+# Benchmarks (uncomment when benchmark files are created)
+# [[bench]]
+# name = "parser_bench"
+# harness = false
 
-[[bench]]
-name = "renderer_bench"
-harness = false
+# [[bench]]
+# name = "renderer_bench"
+# harness = false
