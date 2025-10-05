@@ -24,11 +24,11 @@ futures-util = "0.3"
 socket2 = "0.5"
 
 # UI Framework - egui (immediate mode GUI)
-egui = "0.27"
-eframe = { version = "0.27", features = ["wgpu"] }
+egui = "0.28"
+eframe = { version = "0.28", features = ["wgpu"] }
 
 # Graphics/Rendering
-wgpu = "0.19"
+wgpu = "0.20"
 bytemuck = { version = "1.14", features = ["derive"] }
 glam = { version = "0.27", features = ["serde"] }
 

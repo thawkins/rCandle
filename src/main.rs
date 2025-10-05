@@ -22,16 +22,20 @@ fn main() -> anyhow::Result<()> {
             .with_inner_size([1280.0, 800.0])
             .with_min_inner_size([800.0, 600.0])
             .with_active(true)
-            .with_visible(true),
+            .with_visible(true)
+            .with_focused(true)
+            .with_decorations(true)
+            .with_resizable(true),
         ..Default::default()
     };
 
     tracing::info!("Launching UI...");
     
+    // eframe 0.28 changed the signature - now returns Result directly
     eframe::run_native(
         "rCandle",
         native_options,
-        Box::new(|cc| Box::new(RCandleApp::new(cc))),
+        Box::new(|cc| Ok(Box::new(RCandleApp::new(cc)))),
     ).map_err(|e| anyhow::anyhow!("Failed to run eframe: {}", e))?;
 
     tracing::info!("rCandle shutting down");
