@@ -12,6 +12,7 @@ use crate::{
 };
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 use tokio::sync::Mutex as TokioMutex;
 
@@ -1108,21 +1109,21 @@ impl RCandleApp {
                     .on_hover_text("Angle between arc interpolation segments");
                 ui.add(egui::DragValue::new(&mut settings.arc_precision)
                     .speed(0.1)
-                    .clamp_range(0.1..=10.0));
+                    .range(0.1..=10.0));
                 ui.end_row();
                 
                 ui.label("Arc Segments:")
                     .on_hover_text("Number of line segments per arc");
                 ui.add(egui::DragValue::new(&mut settings.arc_segments)
                     .speed(1)
-                    .clamp_range(4..=100));
+                    .range(4..=100));
                 ui.end_row();
                 
                 ui.label("Safe Z Height:")
                     .on_hover_text("Height to retract to before rapid moves");
                 ui.add(egui::DragValue::new(&mut settings.safe_z)
                     .speed(0.1)
-                    .clamp_range(0.0..=100.0)
+                    .range(0.0..=100.0)
                     .suffix(if settings.units_metric { " mm" } else { " in" }));
                 ui.end_row();
             });
@@ -1157,21 +1158,21 @@ impl RCandleApp {
                 ui.label("Connection Timeout:");
                 ui.add(egui::DragValue::new(&mut settings.timeout_ms)
                     .speed(100)
-                    .clamp_range(100..=30000)
+                    .range(100..=30000)
                     .suffix(" ms"));
                 ui.end_row();
                 
                 ui.label("Command Timeout:");
                 ui.add(egui::DragValue::new(&mut settings.command_timeout_ms)
                     .speed(100)
-                    .clamp_range(100..=60000)
+                    .range(100..=60000)
                     .suffix(" ms"));
                 ui.end_row();
                 
                 ui.label("Status Query Interval:");
                 ui.add(egui::DragValue::new(&mut settings.status_query_interval_ms)
                     .speed(10)
-                    .clamp_range(50..=5000)
+                    .range(50..=5000)
                     .suffix(" ms"));
                 ui.end_row();
                 
@@ -1197,7 +1198,7 @@ impl RCandleApp {
                 ui.label("Grid Size:");
                 ui.add(egui::DragValue::new(&mut settings.grid_size)
                     .speed(1.0)
-                    .clamp_range(1.0..=100.0));
+                    .range(1.0..=100.0));
                 ui.end_row();
                 
                 ui.label("Show Tool:");
@@ -1250,14 +1251,14 @@ impl RCandleApp {
                 ui.label("XY Feed Rate:");
                 ui.add(egui::DragValue::new(&mut settings.xy_feed_rate)
                     .speed(10.0)
-                    .clamp_range(1.0..=10000.0)
+                    .range(1.0..=10000.0)
                     .suffix(" mm/min"));
                 ui.end_row();
                 
                 ui.label("Z Feed Rate:");
                 ui.add(egui::DragValue::new(&mut settings.z_feed_rate)
                     .speed(10.0)
-                    .clamp_range(1.0..=5000.0)
+                    .range(1.0..=5000.0)
                     .suffix(" mm/min"));
                 ui.end_row();
                 
@@ -1275,7 +1276,7 @@ impl RCandleApp {
             ui.horizontal(|ui| {
                 ui.add(egui::DragValue::new(&mut settings.step_sizes[i])
                     .speed(0.1)
-                    .clamp_range(0.001..=1000.0));
+                    .range(0.001..=1000.0));
                 
                 if ui.button("🗑").clicked() {
                     settings.step_sizes.remove(i);
@@ -1469,12 +1470,10 @@ impl RCandleApp {
 impl eframe::App for RCandleApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Debug: Log that update is being called
-        static mut FRAME_COUNT: usize = 0;
-        unsafe {
-            FRAME_COUNT += 1;
-            if FRAME_COUNT % 60 == 0 {  // Log every 60 frames (~1 second)
-                tracing::debug!("Update called: frame {}", FRAME_COUNT);
-            }
+        static FRAME_COUNT: AtomicUsize = AtomicUsize::new(0);
+        let count = FRAME_COUNT.fetch_add(1, Ordering::Relaxed);
+        if count % 60 == 0 {  // Log every 60 frames (~1 second)
+            tracing::debug!("Update called: frame {}", count);
         }
         
         // Handle keyboard shortcuts

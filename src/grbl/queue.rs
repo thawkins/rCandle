@@ -8,7 +8,6 @@
 /// - Supports priority for real-time commands
 
 use crate::grbl::commands::GrblCommand;
-use crate::grbl::realtime::RealtimeCommand;
 use crate::grbl::responses::GrblResponse;
 use crate::utils::error::{Error, Result};
 use std::collections::VecDeque;

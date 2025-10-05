@@ -15,7 +15,7 @@ use tokio_tungstenite::{connect_async, tungstenite::Message, WebSocketStream};
 use tokio_tungstenite::MaybeTlsStream;
 use tokio::net::TcpStream;
 
-use crate::connection::traits::{Connection, ConnectionEvent, ConnectionStatus};
+use crate::connection::traits::{Connection, ConnectionStatus};
 use crate::utils::error::{Error, Result};
 
 /// Configuration for a WebSocket connection

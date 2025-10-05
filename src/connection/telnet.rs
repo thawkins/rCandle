@@ -13,7 +13,7 @@ use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tokio::time::timeout;
 
-use crate::connection::traits::{Connection, ConnectionEvent, ConnectionStatus};
+use crate::connection::traits::{Connection, ConnectionStatus};
 use crate::utils::error::{Error, Result};
 
 /// Configuration for a Telnet connection
