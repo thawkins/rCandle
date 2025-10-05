@@ -30,44 +30,28 @@ This document analyzes the key Rust crates (dependencies) used in rCandle, their
 
 ### 3. UI Framework
 
-#### Option A: `iced` (v0.12+) **[RECOMMENDED]**
-- **Purpose**: Cross-platform GUI framework
+#### Selected: `egui` + `eframe` (v0.27+) **[PRIMARY CHOICE]**
+- **Purpose**: Immediate mode GUI framework
 - **Why**: 
-  - Pure Rust
-  - Elm-inspired reactive architecture
-  - Good integration with wgpu
-  - Active development
-  - Clean API
-- **Pros**:
-  - Type-safe message passing
-  - Excellent for tool-like applications
-  - Growing widget ecosystem
-  - Good documentation
-- **Cons**:
-  - Smaller ecosystem than Qt
-  - Some widgets may need custom implementation
-  - Still evolving (pre-1.0)
-- **License**: MIT
-
-#### Option B: `egui` + `eframe` (v0.27+) **[ALTERNATIVE]**
-- **Purpose**: Immediate mode GUI
-- **Why**: 
-  - Simple to use
-  - Very flexible
-  - Excellent for tools
-  - Mature and stable
+  - Simple to use and highly flexible
+  - Excellent for tools and technical applications
+  - Mature and stable with proven track record
+  - Very flexible for custom widgets
+  - Great performance
 - **Pros**:
   - Rapid development
-  - Easy to integrate with custom rendering
+  - Easy to integrate with custom rendering (wgpu)
   - Portable (can run in browser with wasm)
-  - Great for prototyping
+  - Great for prototyping and iteration
+  - Excellent documentation and examples
+  - Works great with async Rust
 - **Cons**:
   - Immediate mode may be less familiar
-  - Can be harder to structure large UIs
-  - More manual state management
+  - More manual state management required
+  - Some styling limitations compared to retained mode
 - **License**: MIT/Apache-2.0
 
-**Decision**: Start with **Iced** for cleaner architecture. If limitations arise, egui is a proven fallback.
+**Decision Rationale**: egui was chosen as the primary UI framework for rCandle due to its maturity, flexibility, and proven success in similar technical applications. The immediate mode paradigm, while different from Qt, offers simplicity and direct control that's ideal for a tool like rCandle. Its excellent integration with wgpu for 3D rendering and ability to create custom widgets makes it perfect for our needs.
 
 ### 4. Graphics API
 
@@ -367,7 +351,18 @@ cargo outdated
 - Release build: < 2 minutes
 - Incremental builds: < 10 seconds
 
-## Alternative Dependency Scenarios
+## Comparison with Original Candle
+
+| Feature | Candle (C++/Qt) | rCandle (Rust) |
+|---------|----------------|----------------|
+| Language | C++ | Rust |
+| UI Framework | Qt5 | egui + eframe |
+| Graphics | OpenGL 2.0 | WGPU (Vulkan/Metal/DX12) |
+| Memory Safety | Manual | Guaranteed by compiler |
+| Async I/O | Qt event loop | Tokio async runtime |
+| Build System | CMake | Cargo |
+| Package Manager | vcpkg | Cargo |
+| Target Platforms | Windows, Linux, macOS | Windows, Linux, macOS |
 
 ### Minimal Dependencies (CLI-only version)
 If creating a headless CLI version:

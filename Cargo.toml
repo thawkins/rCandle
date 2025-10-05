@@ -20,10 +20,9 @@ serialport = "4.3"
 # Networking
 tokio-tungstenite = "0.21"
 
-# UI Framework (choose one - uncomment the one you select)
-# iced = { version = "0.12", features = ["tokio", "wgpu"] }
-# egui = "0.27"
-# eframe = { version = "0.27", features = ["wgpu"] }  # egui application framework
+# UI Framework - egui (immediate mode GUI)
+egui = "0.27"
+eframe = { version = "0.27", features = ["wgpu"] }
 
 # Graphics/Rendering
 wgpu = "0.19"

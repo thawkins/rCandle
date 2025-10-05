@@ -10,7 +10,7 @@ A **Rust reimplementation** of Candle, a GRBL controller application with G-Code
 
 ```
 ┌─────────────────────────────────────┐
-│   UI: Iced (or egui)                │
+│   UI: egui + eframe                 │
 ├─────────────────────────────────────┤
 │   Graphics: WGPU                    │
 ├─────────────────────────────────────┤
@@ -24,6 +24,12 @@ A **Rust reimplementation** of Candle, a GRBL controller application with G-Code
 └─────────────────────────────────────┘
 ```
 
+## Target Platforms
+
+- ✅ **Windows** 10/11 (x64)
+- ✅ **Linux** Ubuntu 20.04+, Arch, Fedora (x64)
+- ✅ **macOS** 12+ Monterey and later (x64, Apple Silicon)
+
 ## Core Modules
 
 | Module | Purpose | Key Crates |
@@ -32,7 +38,7 @@ A **Rust reimplementation** of Candle, a GRBL controller application with G-Code
 | **Parser** | G-Code parsing | `nom`, `regex` |
 | **Renderer** | 3D visualization | `wgpu`, `glam` |
 | **State** | App/machine state | `tokio::sync` |
-| **UI** | User interface | `iced` or `egui` |
+| **UI** | User interface | `egui`, `eframe` |
 | **HeightMap** | Surface mapping | `nalgebra` |
 | **Script** | Automation | `rhai` |
 
@@ -129,7 +135,7 @@ cargo bench                  # Benchmarks
 
 | Decision | Choice | Why |
 |----------|--------|-----|
-| UI Framework | **Iced** | Pure Rust, reactive, modern |
+| UI Framework | **egui + eframe** | Mature, flexible, immediate mode, great for tools |
 | Graphics | **WGPU** | Safe, cross-platform, future-proof |
 | Async Runtime | **Tokio** | Industry standard, mature |
 | Parser | **nom** | Zero-copy, composable |

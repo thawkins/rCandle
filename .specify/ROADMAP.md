@@ -373,81 +373,92 @@ Build complete user interface with Iced
 ### Tasks
 
 #### Week 11
-- [ ] **Day 1-2**: Iced Application Setup
-  - [ ] Set up Iced application structure
-  - [ ] Implement basic main window
-  - [ ] Define Message enum
-  - [ ] Implement update() logic
-  - [ ] Implement basic view()
+- [ ] **Day 1-2**: egui/eframe Application Setup
+  - [ ] Set up eframe application structure
+  - [ ] Implement basic main window with eframe::App trait
+  - [ ] Set up immediate mode UI patterns
+  - [ ] Implement basic layout (top panel, central, bottom)
+  - [ ] Add menu bar with egui menus
 
 - [ ] **Day 3-4**: Layout & Panels
-  - [ ] Implement main layout (split panes)
-  - [ ] Create panel framework
-  - [ ] Implement collapsible panels
-  - [ ] Add menu bar
-  - [ ] Add toolbar
+  - [ ] Implement main content split (left/right panels)
+  - [ ] Create collapsible panel framework
+  - [ ] Add side panels for controls
+  - [ ] Implement panel state persistence
+  - [ ] Style panels with egui styling
 
 - [ ] **Day 5**: File Operations
-  - [ ] Implement file dialogs
+  - [ ] Integrate rfd for native file dialogs
   - [ ] Add Open/Save file functionality
   - [ ] Integrate with parser
   - [ ] Update program state on file load
+  - [ ] Display file info in UI
 
 #### Week 12
 - [ ] **Day 1-2**: G-Code Editor Widget
-  - [ ] Implement text editor widget
-  - [ ] Add line numbers
-  - [ ] Implement syntax highlighting (if possible)
-  - [ ] Add scrolling
+  - [ ] Implement egui::TextEdit for code editing
+  - [ ] Add line numbers display
+  - [ ] Implement basic syntax highlighting (color keywords)
+  - [ ] Add scrolling support with egui::ScrollArea
   - [ ] Implement current line highlighting
+  - [ ] Add find/replace functionality
 
 - [ ] **Day 3**: Console Widget
-  - [ ] Implement console display
+  - [ ] Implement console display with egui::ScrollArea
   - [ ] Add auto-scrolling
-  - [ ] Implement command input
-  - [ ] Add log filtering
-  - [ ] Implement command history
+  - [ ] Implement command input field
+  - [ ] Add log filtering (error, warning, info)
+  - [ ] Implement command history with up/down arrows
+  - [ ] Add timestamp display
 
 - [ ] **Day 4**: 3D Viewport Integration
-  - [ ] Embed WGPU surface in Iced
-  - [ ] Handle viewport resizing
-  - [ ] Forward input events to camera
+  - [ ] Create custom egui widget for WGPU surface
+  - [ ] Integrate wgpu rendering with egui::CentralPanel
+  - [ ] Handle viewport resizing in immediate mode
+  - [ ] Forward mouse/keyboard input to camera
   - [ ] Update viewport on state changes
+  - [ ] Add viewport controls overlay
 
 - [ ] **Day 5**: Control Panels (Part 1)
-  - [ ] Implement State Panel (status display)
-  - [ ] Implement Control Panel (connect/disconnect)
-  - [ ] Implement Coordinate System Panel
+  - [ ] Implement State Panel with egui::Grid
+  - [ ] Implement Control Panel (connect/disconnect buttons)
+  - [ ] Implement Coordinate System Panel with labels
+  - [ ] Add real-time updates using egui's repaint system
 
 #### Week 13
 - [ ] **Day 1**: Control Panels (Part 2)
-  - [ ] Implement Spindle Panel
-  - [ ] Implement Jog Panel (button grid)
-  - [ ] Implement Override Panel (sliders)
+  - [ ] Implement Spindle Panel with egui::Slider
+  - [ ] Implement Jog Panel (button grid with egui::Grid)
+  - [ ] Implement Override Panel (sliders for feed/spindle)
+  - [ ] Add tooltips using egui::on_hover_text
 
 - [ ] **Day 2**: Settings Dialog
-  - [ ] Implement settings window
-  - [ ] Add tabs for different categories
-  - [ ] Implement form widgets
+  - [ ] Implement settings window with egui::Window
+  - [ ] Add tabbed interface using egui::TabBar (or manual tabs)
+  - [ ] Implement form widgets for settings
+  - [ ] Add validation feedback
   - [ ] Save/load settings integration
 
 - [ ] **Day 3**: Program Control
   - [ ] Add Run/Pause/Stop buttons
-  - [ ] Implement progress bar
-  - [ ] Add time estimates
-  - [ ] Implement program execution flow
+  - [ ] Implement progress bar with egui::ProgressBar
+  - [ ] Add time estimates display
+  - [ ] Implement program execution flow with state updates
+  - [ ] Add hotkeys for common actions
 
 - [ ] **Day 4**: Integration & Testing
-  - [ ] Test all UI interactions
+  - [ ] Test all UI interactions in immediate mode
   - [ ] Test on different screen sizes
   - [ ] Test keyboard shortcuts
-  - [ ] Fix UI bugs and polish
+  - [ ] Fix UI bugs and layout issues
+  - [ ] Optimize UI performance (minimize redraws)
 
 - [ ] **Day 5**: Theming & Polish
-  - [ ] Implement light/dark themes
-  - [ ] Add icons
-  - [ ] Polish layout and spacing
+  - [ ] Configure egui theme (light/dark using egui::Visuals)
+  - [ ] Add application icon
+  - [ ] Polish layout and spacing with egui::Style
   - [ ] Improve responsiveness
+  - [ ] Add loading indicators
 
 ### Deliverables
 - ✅ Functional GUI application

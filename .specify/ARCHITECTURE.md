@@ -376,105 +376,146 @@ pub fn apply_heightmap(
 
 ### 2.6 UI Module
 
-**Purpose**: User interface using Iced framework
+**Purpose**: User interface using egui immediate mode framework
 
-**Iced Architecture**:
+**egui Architecture**:
 
 ```rust
+use eframe::egui;
+
 // Main application structure
 pub struct RCandleApp {
     state: Arc<RwLock<AppState>>,
     connection_mgr: ConnectionManager,
     viewport: Viewport3D,
+    
+    // UI state
+    selected_tab: Tab,
+    console_input: String,
+    show_settings: bool,
 }
 
-// Iced Message enum for events
-#[derive(Debug, Clone)]
-pub enum Message {
-    // Connection messages
-    Connect,
-    Disconnect,
-    ConnectionStatus(bool),
+impl eframe::App for RCandleApp {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        // Top panel - menu bar
+        egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
+            egui::menu::bar(ui, |ui| {
+                ui.menu_button("File", |ui| {
+                    if ui.button("Open...").clicked() {
+                        // Open file dialog
+                    }
+                    if ui.button("Save").clicked() {
+                        // Save file
+                    }
+                });
+                ui.menu_button("Edit", |ui| {
+                    if ui.button("Settings").clicked() {
+                        self.show_settings = true;
+                    }
+                });
+            });
+        });
+        
+        // Main content area
+        egui::CentralPanel::default().show(ctx, |ui| {
+            // Split view - code editor and 3D viewport
+            let available = ui.available_size();
+            
+            ui.horizontal(|ui| {
+                // Left panel - G-Code editor and console
+                ui.vertical(|ui| {
+                    ui.set_width(available.x * 0.4);
+                    self.show_gcode_editor(ui);
+                    self.show_console(ui);
+                });
+                
+                // Right panel - 3D viewport
+                ui.vertical(|ui| {
+                    self.show_viewport(ui, frame);
+                });
+            });
+        });
+        
+        // Bottom panel - control panels
+        egui::TopBottomPanel::bottom("controls").show(ctx, |ui| {
+            self.show_control_panels(ui);
+        });
+        
+        // Settings dialog
+        if self.show_settings {
+            self.show_settings_window(ctx);
+        }
+        
+        // Request repaint for animations
+        ctx.request_repaint();
+    }
     
-    // File operations
-    OpenFile,
-    FileLoaded(Result<Vec<String>>),
-    SaveFile,
-    
-    // Machine control
-    Jog(Axis, f64),
-    SetZero(Axis),
-    StartProgram,
-    PauseProgram,
-    StopProgram,
-    
-    // UI events
-    ViewportInteraction(ViewportEvent),
-    SettingsChanged(Settings),
-    
-    // GRBL events
-    StatusUpdate(MachineStatus),
-    ResponseReceived(Response),
+    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+        // Cleanup on exit
+    }
 }
 
-impl Application for RCandleApp {
-    type Message = Message;
-    type Executor = executor::Default;
-    type Flags = ();
-    
-    fn new(_flags: ()) -> (Self, Command<Message>) {
-        // Initialize application
+impl RCandleApp {
+    fn show_gcode_editor(&mut self, ui: &mut egui::Ui) {
+        // G-Code editor implementation
     }
     
-    fn title(&self) -> String {
-        String::from("rCandle - GRBL Controller")
+    fn show_console(&mut self, ui: &mut egui::Ui) {
+        // Console implementation
     }
     
-    fn update(&mut self, message: Message) -> Command<Message> {
-        // Handle messages, update state
+    fn show_viewport(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+        // 3D viewport with wgpu integration
     }
     
-    fn view(&self) -> Element<Message> {
-        // Build UI layout
+    fn show_control_panels(&mut self, ui: &mut egui::Ui) {
+        // State, jog, spindle controls
+    }
+    
+    fn show_settings_window(&mut self, ctx: &egui::Context) {
+        // Settings dialog
     }
 }
 ```
 
-**Layout Structure**:
+**Layout Structure with egui**:
 ```
-Main Window
-├── Menu Bar
-│   ├── File (Open, Save, Exit)
-│   ├── Edit (Settings)
-│   ├── View (Panels, Zoom)
-│   └── Help (About, Manual)
-├── Toolbar
-│   ├── Connect/Disconnect
-│   ├── Open File
-│   ├── Run/Pause/Stop
-│   └── Zero axes
-├── Main Content (horizontal split)
-│   ├── Left Panel (40%)
-│   │   ├── G-Code Editor (tabs)
-│   │   └── Console
-│   └── Right Panel (60%)
-│       └── 3D Viewport
-└── Bottom Panel (collapsible)
-    ├── State Panel
-    ├── Control Panel
-    ├── Coordinate System Panel
-    ├── Spindle Panel
-    ├── Jog Panel
-    ├── Override Panel
-    └── Height Map Panel
+Main Window (eframe::App)
+├── Top Panel (egui::TopBottomPanel::top)
+│   └── Menu Bar (egui::menu::bar)
+│       ├── File (Open, Save, Exit)
+│       ├── Edit (Settings)
+│       ├── View (Panels, Zoom)
+│       └── Help (About, Manual)
+│
+├── Central Panel (egui::CentralPanel)
+│   └── Horizontal Split
+│       ├── Left Panel (40%)
+│       │   ├── G-Code Editor (egui::TextEdit with syntax highlighting)
+│       │   └── Console (egui::ScrollArea with text)
+│       └── Right Panel (60%)
+│           └── 3D Viewport (custom wgpu integration)
+│
+└── Bottom Panel (egui::TopBottomPanel::bottom)
+    ├── Collapsible sections
+    ├── State Panel (status display)
+    ├── Control Panel (buttons)
+    ├── Coordinate System Panel (labels)
+    ├── Spindle Panel (controls)
+    ├── Jog Panel (button grid)
+    ├── Override Panel (sliders)
+    └── Height Map Panel (controls)
 ```
 
-**Custom Widgets**:
-- `GCodeEditor`: Syntax-highlighted text editor with line numbers
-- `Console`: Log display with filtering and auto-scroll
-- `Viewport3D`: Embedded WGPU rendering surface
-- `JogControls`: Button grid for manual axis control
-- `OverrideSlider`: Live feed/spindle override control
+**egui Widgets Used**:
+- `egui::TextEdit`: G-Code editor with custom syntax highlighting
+- `egui::ScrollArea`: Console log display with auto-scroll
+- `egui::Window`: Floating dialogs (settings, about)
+- `egui::Button`: Action buttons throughout UI
+- `egui::Slider`: Override controls
+- `egui::Grid`: Layout for jog controls
+- `egui::Label`: Status and coordinate displays
+- Custom widget: `Viewport3D` - Embedded WGPU rendering surface
 
 ### 2.7 Script Module
 

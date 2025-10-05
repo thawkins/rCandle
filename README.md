@@ -116,12 +116,21 @@ See the [Architecture Document](.specify/ARCHITECTURE.md) for detailed informati
 | Feature | Candle (C++/Qt) | rCandle (Rust) |
 |---------|----------------|----------------|
 | Language | C++ | Rust |
-| UI Framework | Qt5 | Iced/egui |
+| UI Framework | Qt5 | egui + eframe |
 | Graphics | OpenGL 2.0 | WGPU (Vulkan/Metal/DX12) |
 | Memory Safety | Manual | Guaranteed by compiler |
 | Async I/O | Qt event loop | Tokio async runtime |
 | Build System | CMake | Cargo |
 | Package Manager | vcpkg | Cargo |
+| Platforms | Windows, Linux, macOS | Windows, Linux, macOS |
+
+### Technical Stack
+- **Language**: Rust 2021 edition
+- **UI Framework**: egui + eframe (immediate mode)
+- **Graphics**: WGPU (Vulkan/Metal/DX12)
+- **Async Runtime**: Tokio
+- **Parser**: nom combinators
+- **Scripting**: Rhai
 
 ### Goals
 

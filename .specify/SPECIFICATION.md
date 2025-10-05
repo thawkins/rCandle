@@ -157,9 +157,8 @@ The Candle program is designed for controlling CNC machines equipped with GRBL f
 ##### UI Module
 - **Responsibility**: User interface
 - **Rust Crates**: 
-  - Primary option: `iced` (pure Rust, cross-platform, Elm-inspired)
-  - Alternative: `egui` (immediate mode, great for tools)
-  - Alternative: `Slint` (declarative UI, Qt-like)
+  - **Primary**: `egui` + `eframe` (immediate mode, excellent for tools)
+  - Chosen for: Flexibility, maturity, ease of integration with custom rendering
 - **Components**:
   - Main window
   - G-Code editor widget
@@ -212,17 +211,21 @@ User Input → UI Module → State Management
 - **Rust** (latest stable)
 - Edition 2021
 
-#### 3.2 Key Dependencies
+#### 3.2 Target Platforms
+- **Windows** 10/11 (primary)
+- **Linux** (Ubuntu 20.04+, Arch, Fedora)
+- **macOS** 12+ (Monterey and later)
+
+#### 3.3 Key Dependencies
 
 **Communication**
 - `serialport = "4.3"` - Serial port access
 - `tokio = { version = "1.35", features = ["full"] }` - Async runtime
 - `tokio-tungstenite = "0.21"` - WebSocket client
 
-**UI Framework** (Choose one)
-- `iced = "0.12"` (Recommended - pure Rust, reactive)
-- `egui = "0.27"` (Alternative - immediate mode)
-- `slint = "1.4"` (Alternative - declarative)
+**UI Framework**
+- `egui = "0.27"` - Immediate mode GUI (primary choice)
+- `eframe = { version = "0.27", features = ["wgpu"] }` - Application framework for egui
 
 **Graphics/Rendering**
 - `wgpu = "0.19"` - Modern graphics API
@@ -484,10 +487,12 @@ rCandle/
 - UI runs on main thread with periodic polling or message passing
 
 #### 6.2 UI Framework Selection
-**Recommendation: Iced**
-- Pros: Pure Rust, reactive architecture, good 3D integration, active development
-- Cons: Smaller ecosystem than Qt, fewer pre-built widgets
-- Alternative egui considered for its maturity and immediate-mode simplicity
+**Selected: egui + eframe**
+- Pros: Mature, flexible, immediate mode simplicity, excellent for tools, great 3D integration
+- Pros: Portable (can run in browser with wasm), rapid development, easy custom widgets
+- Pros: Active development, good documentation, strong community
+- Cons: Immediate mode requires different mental model, more manual state management
+- Decision: Chosen for flexibility and proven track record in technical/tool applications
 
 #### 6.3 Graphics API
 **Recommendation: WGPU**
@@ -560,9 +565,10 @@ rCandle/
 ### 10. Cross-Platform Support
 
 #### 10.1 Target Platforms
-- **Primary**: Linux (Ubuntu 20.04+, Arch, Fedora)
-- **Primary**: Windows 10/11
-- **Secondary**: macOS 12+
+All platforms are primary targets with equal support:
+- **Windows** 10/11 (x64)
+- **Linux** (Ubuntu 20.04+, Arch, Fedora) (x64)
+- **macOS** 12+ (Monterey and later) (x64, Apple Silicon)
 
 #### 10.2 Platform-Specific Considerations
 - Serial port permissions (Linux: dialout group)
@@ -578,7 +584,9 @@ rCandle/
 - `QSettings` → `serde` + JSON/TOML
 - `QString` → `String` or `&str`
 - `QVector3D` → `glam::Vec3`
-- `QOpenGLWidget` → `wgpu` rendering context
+- `QOpenGLWidget` → `egui` + `wgpu` custom 3D viewport
+- `QWidget` → `egui` widgets
+- `QMainWindow` → `eframe::App`
 - `QThread` → `tokio::task` or `std::thread`
 - `QTimer` → `tokio::time::interval`
 - Signals/Slots → Channels or callback functions
