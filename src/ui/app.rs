@@ -79,13 +79,19 @@ pub struct RCandleApp {
 impl RCandleApp {
     /// Create a new rCandle application instance
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        // Load settings first
+        let settings = Settings::load_or_default();
+        
+        // Apply theme from settings
+        Self::apply_theme(&cc.egui_ctx, settings.ui.dark_mode);
+        
+        // Apply font size from settings
+        Self::apply_font_size(&cc.egui_ctx, settings.ui.font_size);
+        
         // Configure egui style for better interactivity
         let mut style = (*cc.egui_ctx.style()).clone();
         style.interaction.selectable_labels = true;
         cc.egui_ctx.set_style(style);
-        
-        // Load settings
-        let settings = Settings::load_or_default();
         
         // Initialize application state
         let app_state = AppState::new();
@@ -796,6 +802,27 @@ impl RCandleApp {
         }
     }
     
+    /// Apply theme (dark/light mode) to the UI
+    fn apply_theme(ctx: &egui::Context, dark_mode: bool) {
+        if dark_mode {
+            ctx.set_visuals(egui::Visuals::dark());
+        } else {
+            ctx.set_visuals(egui::Visuals::light());
+        }
+    }
+    
+    /// Apply font size to the UI
+    fn apply_font_size(ctx: &egui::Context, font_size: f32) {
+        let mut style = (*ctx.style()).clone();
+        
+        // Update text styles with new font size
+        for (_text_style, font_id) in style.text_styles.iter_mut() {
+            font_id.size = font_size;
+        }
+        
+        ctx.set_style(style);
+    }
+    
     /// Show settings dialog window
     fn show_settings_window(&mut self, ctx: &egui::Context) {
         let mut open = true;
@@ -866,11 +893,27 @@ impl RCandleApp {
         // Handle actions outside the closure to avoid borrowing issues
         if should_save {
             if let Some(ref temp_settings) = self.temp_settings {
+                // Check if theme or font size changed
+                let theme_changed = self.settings.ui.dark_mode != temp_settings.ui.dark_mode;
+                let font_changed = self.settings.ui.font_size != temp_settings.ui.font_size;
+                
                 self.settings = temp_settings.clone();
+                
+                // Apply theme and font changes immediately
+                if theme_changed {
+                    Self::apply_theme(ctx, self.settings.ui.dark_mode);
+                }
+                if font_changed {
+                    Self::apply_font_size(ctx, self.settings.ui.font_size);
+                }
+                
                 if let Err(e) = self.settings.save_default() {
                     self.console.error(format!("Failed to save settings: {}", e));
                 } else {
                     self.console.info("Settings saved".to_string());
+                    if theme_changed || font_changed {
+                        self.console.info("Theme/font changes applied".to_string());
+                    }
                 }
             }
             self.show_settings_dialog = false;
@@ -899,24 +942,29 @@ impl RCandleApp {
             .show(ui, |ui| {
                 ui.label("Units:");
                 ui.horizontal(|ui| {
-                    ui.radio_value(&mut settings.units_metric, true, "Metric (mm)");
-                    ui.radio_value(&mut settings.units_metric, false, "Imperial (inches)");
+                    ui.radio_value(&mut settings.units_metric, true, "Metric (mm)")
+                        .on_hover_text("Use millimeters for measurements");
+                    ui.radio_value(&mut settings.units_metric, false, "Imperial (inches)")
+                        .on_hover_text("Use inches for measurements");
                 });
                 ui.end_row();
                 
-                ui.label("Arc Precision (°):");
+                ui.label("Arc Precision (°):")
+                    .on_hover_text("Angle between arc interpolation segments");
                 ui.add(egui::DragValue::new(&mut settings.arc_precision)
                     .speed(0.1)
                     .clamp_range(0.1..=10.0));
                 ui.end_row();
                 
-                ui.label("Arc Segments:");
+                ui.label("Arc Segments:")
+                    .on_hover_text("Number of line segments per arc");
                 ui.add(egui::DragValue::new(&mut settings.arc_segments)
                     .speed(1)
                     .clamp_range(4..=100));
                 ui.end_row();
                 
-                ui.label("Safe Z Height:");
+                ui.label("Safe Z Height:")
+                    .on_hover_text("Height to retract to before rapid moves");
                 ui.add(egui::DragValue::new(&mut settings.safe_z)
                     .speed(0.1)
                     .clamp_range(0.0..=100.0)
@@ -1153,6 +1201,11 @@ impl eframe::App for RCandleApp {
             if i.modifiers.command && i.key_pressed(egui::Key::S) {
                 self.save_file();
             }
+            // Ctrl+, to open settings (common shortcut)
+            if i.modifiers.command && i.key_pressed(egui::Key::Comma) {
+                self.show_settings_dialog = true;
+                self.temp_settings = Some(self.settings.clone());
+            }
         });
         
         // Top panel with menu bar
@@ -1225,7 +1278,7 @@ impl eframe::App for RCandleApp {
                 });
                 
                 ui.menu_button("Tools", |ui| {
-                    if ui.button("⚙ Settings...").clicked() {
+                    if ui.button("⚙ Settings... (Ctrl+,)").clicked() {
                         self.show_settings_dialog = true;
                         self.temp_settings = Some(self.settings.clone());
                         ui.close_menu();
