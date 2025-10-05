@@ -1,5 +1,10 @@
 //! Connection module
 //!
-//! TODO: Add module documentation
+//! This module provides abstract interfaces for communicating with GRBL controllers
+//! via different connection types (serial, telnet, websocket).
 
-#![allow(dead_code)] // Remove after implementation
+mod serial;
+mod traits;
+
+pub use serial::SerialConnection;
+pub use traits::{Connection, ConnectionStatus, ConnectionEvent};

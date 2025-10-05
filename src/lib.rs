@@ -16,6 +16,9 @@ pub mod state;
 pub mod ui;
 pub mod utils;
 
+// Re-export commonly used types
+pub use utils::error::{Error, Result};
+
 /// Application version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 

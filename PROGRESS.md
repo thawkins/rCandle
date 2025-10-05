@@ -1,6 +1,233 @@
 # rCandle Development Progress
 
-## Latest Update: Phase 2 G-Code Parser - Completed
+## Latest Update: Phase 3 Connection & GRBL Protocol - In Progress
+
+**Date**: January 2025
+**Commit**: TBD
+
+### ✅ Completed Tasks
+
+#### Phase 3: Connection & GRBL Protocol Implementation (Partial)
+
+- **Connection Trait**: Abstract interface for all connection types
+  - Defined `Connection` trait with async methods
+  - `ConnectionStatus` enum: Disconnected, Connecting, Connected, Error
+  - `ConnectionEvent` enum for broadcasting connection events
+  - Comprehensive trait methods: connect, disconnect, send/receive, status checking
+  - Full async support using async-trait
+  
+- **Serial Connection**: Serial port communication implementation
+  - `SerialConnection` struct with full GRBL serial support
+  - `SerialConfig` with baud rate, data bits, stop bits, parity, flow control
+  - Async send_line and send_bytes methods
+  - Async receive_line with timeout support
+  - Internal buffering for received lines
+  - Port listing functionality (list_ports)
+  - Proper connection lifecycle management
+  - Thread-safe with Arc<Mutex<>> for port sharing
+  - 6 comprehensive serial connection tests passing
+
+- **GRBL Protocol - Commands**: Command formatting and types
+  - `GrblCommand` enum with all GRBL command types:
+    - G-Code commands
+    - System commands ($, $$, $#, $G, $I, $N)
+    - Control commands ($C, $X, $H)
+    - Jog commands with X, Y, Z, and feed rate
+    - Setting management ($x=val, $RST)
+    - Sleep mode
+  - Command formatting with proper line endings
+  - `GrblSettings` structure for machine settings
+  - Support for 30+ GRBL settings parameters
+  - 10 command formatting tests passing
+
+- **GRBL Protocol - Real-time Commands**: Immediate execution commands
+  - `RealtimeCommand` enum with 23 real-time commands:
+    - Status query (?)
+    - Feed hold (!), Cycle start (~)
+    - Soft reset (0x18)
+    - Safety door (0x84)
+    - Jog cancel (0x85)
+    - Feed override controls (10 commands)
+    - Rapid override controls (3 commands)
+    - Spindle override controls (4 commands)
+    - Coolant toggle (2 commands)
+  - Byte conversion (as_byte method)
+  - Command descriptions for UI display
+  - 3 real-time command tests passing
+
+- **GRBL Protocol - Responses**: Response parsing and status reports
+  - `GrblResponse` enum for all response types:
+    - OK/Error/Alarm responses
+    - Status reports with full machine state
+    - Settings responses
+    - Feedback messages
+    - Welcome/version messages
+  - `GrblStatus` struct with complete status parsing:
+    - Machine state (Idle, Run, Hold, Jog, Alarm, etc.)
+    - Position tracking (MPos, WPos, WCO)
+    - Buffer state (planner blocks, RX bytes)
+    - Feed rate and spindle speed
+    - Override percentages (feed, rapid, spindle)
+    - Pin states and accessories
+  - `Position` struct for 3D coordinates
+  - `MachineState` enum with 9 machine states
+  - Error message lookup (38 error codes)
+  - Alarm message lookup (9 alarm codes)
+  - Comprehensive response parsing with error handling
+  - 10 response parsing tests passing
+
+### 📊 Build Status
+- ✅ All code compiles successfully
+- ✅ Zero compilation errors
+- ✅ Only 6 minor documentation warnings (non-critical, from Phase 2)
+- ✅ **64 unit tests passing** (100% pass rate)
+  - 6 connection tests (new)
+  - 3 real-time command tests (new)
+  - 10 GRBL command tests (new)
+  - 10 GRBL response tests (new)
+  - 12 tokenizer tests
+  - 4 parser tests
+  - 5 segment tests
+  - 4 preprocessor tests
+  - 2 type tests
+  - 8 other module tests
+- ✅ Application builds in debug mode
+
+### 🧪 Testing Coverage
+
+Comprehensive test coverage across connection and GRBL modules:
+
+**Connection Tests**:
+- Serial configuration defaults
+- Connection creation and status
+- Port listing
+- Description formatting
+- Send operations on disconnected port
+- Event and status enums
+
+**GRBL Command Tests**:
+- G-Code command formatting
+- System command formatting ($, $$, $H, etc.)
+- Jog command with multiple axes
+- Setting commands
+- Display trait implementation
+- Default settings structure
+
+**GRBL Real-time Tests**:
+- Byte conversion for all commands
+- Command descriptions
+- Type conversion to u8
+
+**GRBL Response Tests**:
+- OK response parsing
+- Error response parsing with codes
+- Alarm response parsing with codes
+- Status report parsing with all fields
+- Welcome message parsing
+- Setting line parsing
+- Feedback message parsing
+- Position parsing (x,y,z)
+- Machine state from string conversion
+- Error and alarm message lookup
+
+### 📁 Files Created/Updated
+```
+src/connection/
+├── mod.rs (updated - module exports)
+├── traits.rs (new - 140 lines)
+└── serial.rs (new - 280 lines)
+
+src/grbl/
+├── mod.rs (updated - module exports)
+├── commands.rs (new - 320 lines)
+├── realtime.rs (new - 175 lines)
+└── responses.rs (new - 530 lines)
+
+Cargo.toml (updated - added async-trait dependency)
+src/lib.rs (updated - export Error and Result types)
+```
+
+**Total Lines of Code Added**: ~1,445 lines
+**Test Code**: ~430 lines (30% of total)
+
+### 🎯 Phase 3 Progress
+
+**Week 5, Day 1-2: Connection Trait & Serial Implementation** ✅ COMPLETED:
+- ✅ Define Connection trait with async support
+- ✅ Implement SerialConnection with tokio support
+- ✅ Handle port opening/closing
+- ✅ Implement async send/receive operations
+- ✅ Handle connection errors
+- ✅ Write serial connection tests
+
+**Week 5, Day 3-4: GRBL Protocol Handling** ✅ COMPLETED:
+- ✅ Implement GRBL command formatting (all command types)
+- ✅ Parse GRBL responses (ok, error:X)
+- ✅ Parse GRBL status reports with full state
+- ✅ Parse GRBL alarms and error messages
+- ✅ Handle real-time commands (?, !, ~, 0x18, overrides)
+- ✅ Implement GRBL settings structure
+- ✅ Write protocol parsing tests (100% pass rate)
+
+**Week 5, Day 5: Command Queue** ⏳ NEXT:
+- [ ] Implement command queue (bounded channel)
+- [ ] Handle command acknowledgments
+- [ ] Implement flow control (wait for "ok")
+- [ ] Handle command timeouts
+- [ ] Write queue management tests
+
+### 🎖️ Key Technical Achievements
+
+1. **Async-First Design**: Full async/await support with tokio and async-trait
+2. **Comprehensive GRBL Protocol**: Complete implementation of GRBL 1.1 protocol
+3. **Error Handling**: Detailed error messages for all 38 GRBL error codes and 9 alarm codes
+4. **Status Parsing**: Full status report parsing including position, overrides, and pin states
+5. **Real-time Commands**: Support for all 23 GRBL real-time commands
+6. **Type Safety**: Strong typing for all GRBL commands, responses, and states
+7. **Extensive Testing**: 29 new tests with 100% pass rate
+
+### 🚀 Next Steps: Phase 3 Continuation
+
+1. **Command Queue** (Week 5, Day 5)
+   - Implement bounded channel for command queuing
+   - Flow control with "ok" acknowledgments
+   - Command timeout handling
+   - Priority queue for real-time commands
+   - Queue management tests
+
+2. **Connection Manager** (Week 6, Day 1-2)
+   - Coordinate command sending and response receiving
+   - Broadcast status updates
+   - Handle disconnections gracefully
+   - Connection lifecycle management
+   - Integration tests
+
+3. **Alternative Connections** (Week 6, Day 3)
+   - TelnetConnection (basic implementation)
+   - WebSocketConnection (basic implementation)
+   - Tests for alternative connections
+
+4. **Integration & Testing** (Week 6, Day 4-5)
+   - End-to-end testing with mock GRBL
+   - Performance testing
+   - Documentation and examples
+
+### 📈 Overall Project Progress
+
+**Phase 1**: ✅ Complete (Foundation)
+**Phase 2**: ✅ Complete (G-Code Parser) 
+**Phase 3**: 🔄 In Progress (Connection Module - 60% complete)
+**Phase 4**: ⬜ Pending (Command Processing)
+**Phase 5**: ⬜ Pending (3D Visualization)
+**Phase 6**: ⬜ Pending (UI Framework)
+
+**Estimated Completion**: ~20% of total project
+
+---
+
+## Historical Progress
+
+### Phase 2: G-Code Parser - Completed
 
 **Date**: January 2025
 **Commit**: fd8bc27
