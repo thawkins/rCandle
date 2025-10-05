@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 💬 GitHub Discussions
+    url: https://github.com/thawkins/rCandle/discussions
+    about: Ask questions, share ideas, or discuss the project
+  - name: 📚 Documentation
+    url: https://github.com/thawkins/rCandle/tree/master/.specify
+    about: Read the complete specification and implementation guides
+  - name: 🚀 Quick Start Guide
+    url: https://github.com/thawkins/rCandle/blob/master/.specify/START_HERE.md
+    about: Get started with development
