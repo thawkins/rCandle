@@ -19,7 +19,9 @@ async-trait = "0.1"
 serialport = "4.3"
 
 # Networking
-tokio-tungstenite = "0.21"
+tokio-tungstenite = { version = "0.21", features = ["native-tls"] }
+futures-util = "0.3"
+socket2 = "0.5"
 
 # UI Framework - egui (immediate mode GUI)
 egui = "0.27"
