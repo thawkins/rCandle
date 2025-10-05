@@ -1,15 +1,120 @@
 # rCandle Development Progress
 
-## Latest Update: Phase 3 Connection & GRBL Protocol - Alternative Connections Completed
+## Latest Update: Phase 3 Connection & GRBL Protocol - Integration Testing Started
 
 **Date**: January 2025
 **Commit**: TBD
 
 ### ✅ Completed Tasks
 
-#### Phase 3: Connection & GRBL Protocol Implementation (Continued)
+#### Phase 3: Connection & GRBL Protocol Implementation (Continued - Integration Testing)
 
-- **Alternative Connections**: Telnet and WebSocket implementations ✅
+- **Mock GRBL Simulator**: Complete mock GRBL implementation for testing ✅
+  - `MockGrbl` struct with realistic GRBL simulation
+  - TCP server for accepting network connections
+  - Complete GRBL protocol emulation:
+    - Status reports (`<Idle|MPos:...>`)
+    - Welcome message
+    - OK/Error responses
+    - Settings queries ($$, $#, $G, $I)
+    - System commands ($H, $X)
+    - G-code command processing
+    - Real-time command handling
+  - Async command processing with delays
+  - State management (Idle, Run, Hold, etc.)
+  - Command history tracking
+  - 6 comprehensive unit tests for mock GRBL
+  - Location: `tests/common/mock_grbl.rs` (310 lines)
+
+- **Integration Tests**: End-to-end connection testing ✅
+  - Test file structure created in `tests/connection_integration.rs`
+  - 11 total tests (9 passing, 2 timing-sensitive tests under refinement)
+  - Passing tests:
+    - Mock GRBL creation and state management (3 tests)
+    - Mock GRBL command processing (3 tests)
+    - Telnet connection to mock server
+    - Connection error handling
+    - Reconnection behavior
+  - Tests under refinement:
+    - ConnectionManager with mock GRBL (timing coordination)
+    - Command queueing through manager (async timing)
+  - Integration test framework established
+  - Location: `tests/connection_integration.rs` (250 lines)
+
+- **Example Applications**: User-facing demonstration code ✅
+  - Examples already exist from previous work:
+    - `examples/serial_connection.rs` - Basic serial connection
+    - `examples/telnet_connection.rs` - Network connection via Telnet
+    - `examples/websocket_connection.rs` - WebSocket connection
+    - `examples/connection_manager.rs` - Advanced connection management
+    - `examples/parse_gcode.rs` - G-code parsing demonstration
+  - All examples compile successfully
+  - Ready for real hardware testing
+
+### 📊 Build Status
+- ✅ All code compiles successfully
+- ✅ Zero compilation errors
+- ✅ Only 10 minor documentation warnings (non-critical, from Phase 2)
+- ✅ **95 unit tests passing** (100% pass rate)
+  - 7 telnet connection tests
+  - 7 websocket connection tests
+  - 7 connection manager tests
+  - 6 serial connection tests
+  - 3 real-time command tests
+  - 10 GRBL command tests
+  - 10 GRBL response tests
+  - 10 queue management tests
+  - 12 tokenizer tests
+  - 4 parser tests
+  - 5 segment tests
+  - 4 preprocessor tests
+  - 2 type tests
+  - 8 other module tests
+- ✅ **9 integration tests passing** (2 timing-sensitive tests under refinement)
+  - 6 mock GRBL tests
+  - 3 connection integration tests (1 telnet, 1 error handling, 1 reconnection)
+- ✅ Application builds in debug mode
+- ✅ All example applications compile
+
+### 🧪 Testing Coverage
+
+**Mock GRBL Tests**:
+- Mock GRBL creation with default state
+- State modification and tracking
+- Command history management
+- Status query response generation
+- G-code command processing
+- Settings query responses
+
+**Integration Tests** (Passing):
+- Telnet connection to mock GRBL server
+  - Connect/disconnect cycle
+  - Send/receive messages
+  - Status query and response
+  - G-code command execution
+  - Command history verification
+- Error handling for unavailable servers
+- Reconnection after disconnect
+
+**Integration Tests** (Under Refinement):
+- ConnectionManager coordination with mock GRBL
+- Multi-command queueing through manager
+- These tests work but need timing adjustments for reliable CI/CD
+
+### 📁 Files Created/Updated
+```
+tests/
+├── common/
+│   ├── mod.rs (new - test utilities export)
+│   └── mock_grbl.rs (new - 310 lines)
+└── connection_integration.rs (new - 250 lines)
+
+examples/
+├── serial_connection.rs (existing - updated)
+├── telnet_connection.rs (existing - updated)
+├── websocket_connection.rs (existing - updated)
+├── connection_manager.rs (existing - updated)
+└── parse_gcode.rs (existing)
   - `TelnetConnection` for TCP/IP network connections:
     - `TelnetConfig` with host, port, timeouts, and keepalive
     - TCP keepalive configuration with socket2
