@@ -322,6 +322,76 @@ impl Renderer {
             self.camera.position = center + nalgebra::Vector3::new(distance, distance, distance);
         }
     }
+    
+    /// Calculate bounds of the toolpath
+    /// Returns (min, max) as (Vec3, Vec3)
+    pub fn calculate_bounds(&self) -> (glam::Vec3, glam::Vec3) {
+        if let Some(bbox) = self.toolpath.bounding_box() {
+            let center = bbox.center();
+            let size = bbox.size();
+            
+            let min = glam::Vec3::new(
+                center.x - size.x / 2.0,
+                center.y - size.y / 2.0,
+                center.z - size.z / 2.0,
+            );
+            
+            let max = glam::Vec3::new(
+                center.x + size.x / 2.0,
+                center.y + size.y / 2.0,
+                center.z + size.z / 2.0,
+            );
+            
+            (min, max)
+        } else {
+            // Default bounds if no toolpath
+            (glam::Vec3::new(-50.0, -50.0, -50.0), glam::Vec3::new(50.0, 50.0, 50.0))
+        }
+    }
+    
+    /// Apply a view preset to the camera
+    pub fn apply_view_preset(&mut self, preset: super::ViewPreset, center: glam::Vec3, distance: f32) {
+        use super::view_presets::ViewPreset;
+        
+        // Convert glam::Vec3 to nalgebra::Point3
+        let center_pt = nalgebra::Point3::new(center.x, center.y, center.z);
+        
+        match preset {
+            ViewPreset::Top => {
+                self.camera.position = center_pt + nalgebra::Vector3::new(0.0, 0.0, distance);
+                self.camera.target = center_pt;
+            }
+            ViewPreset::Bottom => {
+                self.camera.position = center_pt + nalgebra::Vector3::new(0.0, 0.0, -distance);
+                self.camera.target = center_pt;
+            }
+            ViewPreset::Front => {
+                self.camera.position = center_pt + nalgebra::Vector3::new(0.0, distance, 0.0);
+                self.camera.target = center_pt;
+            }
+            ViewPreset::Back => {
+                self.camera.position = center_pt + nalgebra::Vector3::new(0.0, -distance, 0.0);
+                self.camera.target = center_pt;
+            }
+            ViewPreset::Right => {
+                self.camera.position = center_pt + nalgebra::Vector3::new(distance, 0.0, 0.0);
+                self.camera.target = center_pt;
+            }
+            ViewPreset::Left => {
+                self.camera.position = center_pt + nalgebra::Vector3::new(-distance, 0.0, 0.0);
+                self.camera.target = center_pt;
+            }
+            ViewPreset::Isometric => {
+                let iso_distance = distance / 1.732; // sqrt(3)
+                self.camera.position = center_pt + nalgebra::Vector3::new(
+                    iso_distance,
+                    iso_distance,
+                    iso_distance,
+                );
+                self.camera.target = center_pt;
+            }
+        }
+    }
 }
 
 #[cfg(test)]

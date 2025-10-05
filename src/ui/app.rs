@@ -4,7 +4,8 @@ use crate::{
     connection::{ConnectionManager, ConnectionManagerConfig, SerialConnection},
     grbl::{CommandQueue, GrblCommand},
     parser::{Parser, Preprocessor, Segment, SegmentType, Tokenizer},
-    renderer::Renderer,
+    renderer::{Renderer, ViewPreset},
+    script::{ScriptLibrary, UserCommandLibrary, UserScript},
     settings::Settings,
     state::{AppState, ExecutionState},
     ui::widgets::{Console, GCodeEditor},
@@ -74,6 +75,16 @@ pub struct RCandleApp {
     show_settings_dialog: bool,
     /// Temporary settings being edited (None when dialog is closed)
     temp_settings: Option<Settings>,
+    /// Script library for user scripts
+    script_library: ScriptLibrary,
+    /// User command library for custom buttons
+    user_command_library: UserCommandLibrary,
+    /// Show script editor dialog
+    show_script_editor: bool,
+    /// Currently editing script (None when not editing)
+    editing_script: Option<UserScript>,
+    /// Show user commands panel
+    show_user_commands: bool,
 }
 
 impl RCandleApp {
@@ -158,6 +169,11 @@ impl RCandleApp {
             available_ports,
             show_settings_dialog: false,
             temp_settings: None,
+            script_library: ScriptLibrary::new(),
+            user_command_library: UserCommandLibrary::default(),
+            show_script_editor: false,
+            editing_script: None,
+            show_user_commands: true,
         }
     }
 
@@ -1174,6 +1190,141 @@ impl RCandleApp {
                 ui.end_row();
             });
     }
+    
+    /// Apply a view preset to the camera
+    fn apply_view_preset(&mut self, preset: ViewPreset) {
+        if let Some(ref mut renderer) = self.renderer {
+            // Calculate center and distance from bounds
+            let bounds = renderer.calculate_bounds();
+            let center = glam::Vec3::new(
+                (bounds.0.x + bounds.1.x) / 2.0,
+                (bounds.0.y + bounds.1.y) / 2.0,
+                (bounds.0.z + bounds.1.z) / 2.0,
+            );
+            
+            let size = glam::Vec3::new(
+                (bounds.1.x - bounds.0.x).abs(),
+                (bounds.1.y - bounds.0.y).abs(),
+                (bounds.1.z - bounds.0.z).abs(),
+            );
+            let distance = size.max_element() * 2.0;
+            
+            // Apply the preset
+            renderer.apply_view_preset(preset, center, distance);
+            
+            self.status_message = format!("Applied {:?} view", preset);
+            self.console.info(format!("Camera set to {:?} view", preset));
+        }
+    }
+    
+    /// Execute a user command
+    fn execute_user_command(&mut self, command_name: &str) {
+        // Clone commands first to avoid borrowing issues
+        let commands = self.user_command_library.get_command(command_name)
+            .map(|c| c.commands.clone());
+        
+        if let Some(cmds) = commands {
+            self.console.info(format!("Executing user command: {}", command_name));
+            
+            for cmd in cmds {
+                self.send_command(GrblCommand::GCode(cmd));
+            }
+            
+            self.status_message = format!("Executed: {}", command_name);
+        } else {
+            self.console.error(format!("User command not found: {}", command_name));
+        }
+    }
+    
+    /// Show script editor window
+    fn show_script_editor_window(&mut self, ctx: &egui::Context) {
+        let mut dialog_open = true;
+        let mut action = None; // To store actions to perform after the UI
+        
+        egui::Window::new("Script Editor")
+            .open(&mut dialog_open)
+            .default_width(600.0)
+            .default_height(400.0)
+            .show(ctx, |ui| {
+                if let Some(ref mut script) = self.editing_script {
+                    ui.horizontal(|ui| {
+                        ui.label("Name:");
+                        ui.text_edit_singleline(&mut script.name);
+                    });
+                    
+                    ui.separator();
+                    
+                    // Multi-line text editor for script content
+                    ui.label("Script:");
+                    egui::ScrollArea::vertical()
+                        .max_height(250.0)
+                        .show(ui, |ui| {
+                            ui.add(egui::TextEdit::multiline(&mut script.code)
+                                .code_editor()
+                                .desired_width(f32::INFINITY)
+                                .desired_rows(15));
+                        });
+                    
+                    ui.separator();
+                    
+                    ui.horizontal(|ui| {
+                        ui.checkbox(&mut script.show_in_toolbar, "Show in Toolbar");
+                    });
+                    
+                    ui.separator();
+                    
+                    ui.horizontal(|ui| {
+                        if ui.button("💾 Save").clicked() {
+                            action = Some(("save", script.name.clone()));
+                        }
+                        
+                        if ui.button("▶ Test Run").clicked() {
+                            action = Some(("test", script.name.clone()));
+                        }
+                        
+                        if ui.button("❌ Cancel").clicked() {
+                            action = Some(("cancel", String::new()));
+                        }
+                    });
+                } else {
+                    ui.label("No script loaded");
+                    
+                    if ui.button("Close").clicked() {
+                        action = Some(("close", String::new()));
+                    }
+                }
+            });
+        
+        // Process actions after the UI closure
+        if let Some((act, name)) = action {
+            match act {
+                "save" => {
+                    if let Some(script) = &self.editing_script {
+                        self.script_library.add_script(script.clone());
+                        self.console.info(format!("Saved script: {}", name));
+                        self.status_message = format!("Script saved: {}", name);
+                    }
+                    self.show_script_editor = false;
+                    self.editing_script = None;
+                }
+                "test" => {
+                    self.console.info(format!("Testing script: {}", name));
+                    // TODO: Execute script via script executor
+                    self.status_message = format!("Testing: {}", name);
+                }
+                "cancel" | "close" => {
+                    self.show_script_editor = false;
+                    self.editing_script = None;
+                }
+                _ => {}
+            }
+        }
+        
+        if !dialog_open {
+            self.show_script_editor = false;
+            self.editing_script = None;
+        }
+    }
 }
 
 impl eframe::App for RCandleApp {
@@ -1275,12 +1426,21 @@ impl eframe::App for RCandleApp {
                     if ui.checkbox(&mut self.show_console, "📟 Show Console").clicked() {
                         ui.close_menu();
                     }
+                    if ui.checkbox(&mut self.show_user_commands, "🔧 Show User Commands").clicked() {
+                        ui.close_menu();
+                    }
                 });
                 
                 ui.menu_button("Tools", |ui| {
                     if ui.button("⚙ Settings... (Ctrl+,)").clicked() {
                         self.show_settings_dialog = true;
                         self.temp_settings = Some(self.settings.clone());
+                        ui.close_menu();
+                    }
+                    ui.separator();
+                    if ui.button("📜 Script Editor...").clicked() {
+                        self.show_script_editor = true;
+                        self.editing_script = Some(UserScript::new("New Script".to_string(), "// Your script here\n".to_string()));
                         ui.close_menu();
                     }
                 });
@@ -1792,6 +1952,84 @@ impl eframe::App for RCandleApp {
                     
                     ui.label(format!("Active: {:.0}%", self.execution_speed));
                 });
+                
+                ui.add_space(10.0);
+                
+                // View Presets - Phase 8
+                ui.group(|ui| {
+                    ui.label("View Presets");
+                    
+                    // Top row of view buttons
+                    ui.horizontal(|ui| {
+                        if ui.button("⬆ Top").clicked() {
+                            self.apply_view_preset(ViewPreset::Top);
+                        }
+                        if ui.button("⬅ Front").clicked() {
+                            self.apply_view_preset(ViewPreset::Front);
+                        }
+                        if ui.button("➡ Right").clicked() {
+                            self.apply_view_preset(ViewPreset::Right);
+                        }
+                    });
+                    
+                    // Bottom row of view buttons
+                    ui.horizontal(|ui| {
+                        if ui.button("⬇ Bottom").clicked() {
+                            self.apply_view_preset(ViewPreset::Bottom);
+                        }
+                        if ui.button("◀ Back").clicked() {
+                            self.apply_view_preset(ViewPreset::Back);
+                        }
+                        if ui.button("◄ Left").clicked() {
+                            self.apply_view_preset(ViewPreset::Left);
+                        }
+                    });
+                    
+                    // Isometric default view
+                    if ui.button("🔲 Isometric").clicked() {
+                        self.apply_view_preset(ViewPreset::Isometric);
+                    }
+                });
+                
+                ui.add_space(10.0);
+                
+                // User Commands Panel - Phase 8
+                if self.show_user_commands {
+                    // Store clicked command outside of borrowing scope
+                    let mut clicked_command: Option<String> = None;
+                    
+                    ui.group(|ui| {
+                        ui.horizontal(|ui| {
+                            ui.label("User Commands");
+                            if ui.button("➕").clicked() {
+                                self.show_script_editor = true;
+                                self.editing_script = Some(UserScript::new("New Command".to_string(), String::new()));
+                            }
+                        });
+                        
+                        ui.separator();
+                        
+                        // Display user commands by category
+                        let categories = self.user_command_library.categories();
+                        for category in categories {
+                            ui.label(category.clone());
+                            
+                            let commands = self.user_command_library.commands_by_category(&category);
+                            for command in commands {
+                                if ui.button(&command.name).clicked() {
+                                    clicked_command = Some(command.name.clone());
+                                }
+                            }
+                            
+                            ui.add_space(3.0);
+                        }
+                    });
+                    
+                    // Execute clicked command after UI closure
+                    if let Some(cmd_name) = clicked_command {
+                        self.execute_user_command(&cmd_name);
+                    }
+                }
 
             });
 
@@ -1874,6 +2112,11 @@ impl eframe::App for RCandleApp {
         // Settings dialog
         if self.show_settings_dialog {
             self.show_settings_window(ctx);
+        }
+        
+        // Show script editor dialog - Phase 8
+        if self.show_script_editor {
+            self.show_script_editor_window(ctx);
         }
     }
 
