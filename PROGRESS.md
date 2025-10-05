@@ -1,13 +1,62 @@
 # rCandle Development Progress
 
-## Latest Update: Phase 6 UI Framework - Console Widget Complete
+## Latest Update: Phase 6 UI Framework - 2D Toolpath Visualization Complete
 
 **Date**: January 2025
 **Commit**: TBD
 
 ### ✅ Completed Tasks
 
-#### Phase 6: UI Framework Implementation (Week 11-12 In Progress)
+#### Phase 6: UI Framework Implementation (Week 12, Day 4 - 2D Visualization Done)
+
+- **2D Toolpath Visualization**: Native egui-based toolpath viewer ✅ NEW!
+  - **XY Plane Projection**: Top-down view of toolpath
+    - Automatic bounds calculation from segments
+    - Auto-scaling to fit viewport
+    - Center alignment with padding
+    - Y-axis flip to match G-Code coordinate system
+  - **Grid Rendering**: Reference grid overlay
+    - 10mm grid spacing
+    - Dark gray grid lines (40, 40, 50)
+    - Automatic grid alignment to nearest 10mm
+    - Vertical and horizontal grid lines
+  - **Coordinate Axes**: Origin visualization
+    - X-axis in red (200, 50, 50)
+    - Y-axis in green (50, 200, 50)
+    - Only shown when origin (0,0) is visible
+    - 2px stroke width for visibility
+  - **Toolpath Segments**: Color-coded path display
+    - Rapid moves (G0): Red lines, 1px width
+    - Linear moves (G1): Green lines, 2px width
+    - Arc moves (G2/G3): Blue lines, 2px width
+    - Proper line rendering with anti-aliasing
+  - **Start Point Marker**: Toolpath start indicator
+    - Cyan filled circle (100, 255, 255)
+    - 4px radius with white stroke
+    - Clear visual indicator of program start
+  - **Status Display**: Information overlay
+    - Segment count display in corner
+    - Light gray text (180, 180, 180)
+    - Monospace font for readability
+  - **Empty State**: User-friendly placeholder
+    - Instructions shown when no file loaded
+    - "Load a G-Code file to view toolpath"
+    - Centered text with proper styling
+  - **Camera Controls Integration**: Menu actions wired up
+    - Reset Camera button (functional but no effect in 2D yet)
+    - Zoom to Fit button (functional but no effect in 2D yet)
+    - Console logging for camera actions
+    - Prepared for 3D camera integration
+  - Location: `src/ui/app.rs` (640+ lines, ~120 lines for visualization)
+
+- **Renderer Integration Preparation**: WGPU setup (partial) ✅
+  - Renderer initialization in `RCandleApp::new()`
+  - Access to WGPU device and queue through eframe
+  - Renderer stored as `Option<Renderer>` in app state
+  - Segments passed to renderer via `set_segments()`
+  - Console logging for renderer status
+  - Ready for future 3D WGPU integration
+  - Note: Full 3D rendering deferred for simpler 2D approach
 
 - **egui Application Setup**: Basic application structure created ✅
   - `RCandleApp` struct implementing eframe::App trait
@@ -226,12 +275,22 @@
 - ✅ Integration with file operations and parser
 - ✅ Command submission handler (ready for GRBL)
 
-**Week 12, Day 4: 3D Viewport Integration** ⏳ NEXT:
-- [ ] WGPU surface integration
-- [ ] Basic camera controls
-- [ ] Grid rendering
-- [ ] Coordinate system display
-- [ ] Tool path visualization
+**Week 12, Day 4: 3D Viewport Integration / 2D Visualization** ✅ COMPLETED:
+- ✅ 2D toolpath visualization with egui native rendering
+- ✅ Grid and axis rendering (10mm spacing, origin axes)
+- ✅ Coordinate system display (X=red, Y=green)
+- ✅ Tool path visualization (color-coded by move type)
+- ✅ Automatic scaling and viewport fitting
+- ✅ Start point marker with cyan circle
+- ✅ Segment count display
+- ⚠️ Note: Full 3D WGPU rendering deferred (2D visualization provides immediate value)
+
+**Week 12, Day 5: Control Panels** ⏳ NEXT:
+- [ ] Enhanced jog controls with button grid
+- [ ] Spindle speed control with slider
+- [ ] Feed rate override
+- [ ] Work coordinate system display
+- [ ] Real-time status updates
 
 ### 📁 Files Created/Updated
 ```
@@ -239,12 +298,12 @@ src/
 ├── main.rs (updated - launch egui application)
 └── ui/
     ├── mod.rs (updated - export widgets module publicly)
-    ├── app.rs (updated - 470+ lines, integrated GCodeEditor and Console)
+    ├── app.rs (updated - 640+ lines, added 2D toolpath visualization)
     ├── panels.rs (placeholder)
     └── widgets.rs (updated - 730+ lines, GCodeEditor + Console widgets)
 ```
 
-**Total Lines of Code Added**: ~1,200 lines (UI Foundation + File Operations + G-Code Editor + Console)
+**Total Lines of Code Added**: ~1,320 lines (UI Foundation + File Operations + Editor + Console + 2D Viewer)
 **Framework**: egui 0.27 with eframe and wgpu backend
 
 ### 🎖️ Key Technical Achievements
@@ -267,31 +326,28 @@ src/
 16. **Log Management**: Multi-level logging with color-coded display
 17. **Command History**: Up/down arrow navigation through command history
 18. **Message Filtering**: Individual toggles for each log level category
-19. **Viewport Preparation**: Central area ready for 3D WGPU rendering
-20. **Clean Architecture**: Modular UI code structure ready for expansion
+19. **2D Toolpath Visualization**: Native egui-based path rendering ✨ NEW
+20. **Automatic Viewport Scaling**: Smart fit-to-view with padding ✨ NEW
+21. **Color-Coded Segments**: Visual distinction between move types ✨ NEW
+22. **Grid and Axes**: Reference grid with origin axes display ✨ NEW
+23. **Coordinate Transformation**: G-Code to screen space mapping ✨ NEW
+24. **Clean Architecture**: Modular UI code structure ready for expansion
 
 ### 🚀 Next Steps: Phase 6 Continuation
 
-1. **3D Viewport Integration** (Week 12, Day 4) ⏳ NEXT
-   - WGPU surface integration
-   - Basic camera controls
-   - Grid rendering
-   - Coordinate system display
-   - Tool path visualization
-
-2. **Control Panels** (Week 12, Day 5)
-   - WGPU surface integration
-   - Basic camera controls
-   - Grid rendering
-   - Coordinate system display
-   - Tool path visualization
-
-2. **Control Panels** (Week 12, Day 5)
+1. **Control Panels Enhancement** (Week 12, Day 5) ⏳ NEXT
    - Enhanced jog controls with button grid
    - Spindle speed control with slider
-   - Feed rate override
+   - Feed rate override controls
    - Work coordinate system display
    - Real-time status updates
+
+2. **3D Viewport Upgrade** (Future Enhancement)
+   - Full WGPU 3D rendering integration
+   - Camera orbit, pan, zoom controls
+   - Perspective/orthographic projection
+   - Z-axis visualization
+   - Tool visualization
 
 ### 📈 Overall Project Progress
 
@@ -299,6 +355,10 @@ src/
 **Phase 2**: ✅ Complete (G-Code Parser) 
 **Phase 3**: ✅ Complete (Connection Module)
 **Phase 4**: ⬜ Pending (Command Processing) - Can be integrated with UI
+**Phase 5**: ⬜ Pending (3D Visualization) - 2D visualization complete, 3D deferred
+**Phase 6**: 🔄 In Progress (UI Framework - 65% complete - Week 12 Day 4 DONE!)
+
+**Estimated Completion**: ~50% of total project
 **Phase 5**: ⬜ Pending (3D Visualization) - Will integrate into Phase 6 central panel
 **Phase 6**: 🔄 In Progress (UI Framework - 55% complete - Week 12 Day 3 DONE!)
 

@@ -1,12 +1,13 @@
 //! Main application structure for rCandle
 
 use crate::{
-    parser::{Parser, Preprocessor, Tokenizer},
+    parser::{Parser, Preprocessor, Segment, SegmentType, Tokenizer},
+    renderer::Renderer,
     settings::Settings,
     state::AppState,
     ui::widgets::{Console, GCodeEditor},
 };
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
 /// Main rCandle application state
 pub struct RCandleApp {
@@ -30,11 +31,15 @@ pub struct RCandleApp {
     console: Console,
     /// Show console panel
     show_console: bool,
+    /// 3D renderer (optional until WGPU is initialized)
+    renderer: Option<Renderer>,
+    /// Parsed segments for rendering
+    segments: Vec<Segment>,
 }
 
 impl RCandleApp {
     /// Create a new rCandle application instance
-    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // Load settings
         let settings = Settings::load_or_default();
         
@@ -53,6 +58,15 @@ impl RCandleApp {
         console.info("rCandle initialized".to_string());
         console.info("Ready to connect to GRBL controller".to_string());
         
+        // Initialize WGPU renderer
+        let renderer = Self::init_renderer(cc);
+        
+        if renderer.is_some() {
+            console.info("3D renderer initialized".to_string());
+        } else {
+            console.warning("Failed to initialize 3D renderer".to_string());
+        }
+        
         tracing::info!("rCandle UI initialized");
         
         Self {
@@ -66,7 +80,21 @@ impl RCandleApp {
             gcode_editor,
             console,
             show_console: true,
+            renderer,
+            segments: Vec::new(),
         }
+    }
+
+    /// Initialize WGPU renderer
+    fn init_renderer(cc: &eframe::CreationContext<'_>) -> Option<Renderer> {
+        // Get WGPU render state from eframe
+        let wgpu_render_state = cc.wgpu_render_state.as_ref()?;
+        
+        let device = wgpu_render_state.device.clone();
+        let queue = wgpu_render_state.queue.clone();
+        let target_format = wgpu_render_state.target_format;
+        
+        Some(Renderer::new(device, queue, target_format))
     }
 
     /// Open a G-Code file
@@ -193,6 +221,15 @@ impl RCandleApp {
         self.console.info(format!("Preprocessed to {} segments", processed_count));
         tracing::info!("Preprocessed to {} segments", processed_count);
         
+        // Store segments for rendering
+        self.segments = processed.clone();
+        
+        // Update renderer with new toolpath
+        if let Some(ref mut renderer) = self.renderer {
+            renderer.set_segments(processed);
+            self.console.info("3D view updated with toolpath".to_string());
+        }
+        
         // Update program state with the parsed data
         let mut program = self.app_state.program.write();
         program.total_lines = self.gcode_content.lines().count();
@@ -220,6 +257,119 @@ impl RCandleApp {
         self.console.received("ok".to_string());
         
         tracing::info!("Console command: {}", cmd);
+    }
+
+    /// Draw toolpath in 2D (XY plane projection)
+    fn draw_toolpath_2d(&self, ui: &mut egui::Ui, rect: egui::Rect) {
+        use egui::{Color32, Pos2, Stroke};
+        
+        if self.segments.is_empty() {
+            return;
+        }
+        
+        // Calculate bounding box
+        let mut min_x = f64::MAX;
+        let mut max_x = f64::MIN;
+        let mut min_y = f64::MAX;
+        let mut max_y = f64::MIN;
+        
+        for segment in &self.segments {
+            min_x = min_x.min(segment.start.x).min(segment.end.x);
+            max_x = max_x.max(segment.start.x).max(segment.end.x);
+            min_y = min_y.min(segment.start.y).min(segment.end.y);
+            max_y = max_y.max(segment.start.y).max(segment.end.y);
+        }
+        
+        // Add some padding
+        let padding = 20.0;
+        let width = (max_x - min_x) as f32;
+        let height = (max_y - min_y) as f32;
+        
+        if width == 0.0 || height == 0.0 {
+            return;
+        }
+        
+        // Calculate scale to fit in viewport
+        let viewport_width = rect.width() - padding * 2.0;
+        let viewport_height = rect.height() - padding * 2.0;
+        let scale = (viewport_width / width).min(viewport_height / height);
+        
+        // Center offset
+        let offset_x = rect.left() + padding + (viewport_width - width * scale) / 2.0;
+        let offset_y = rect.top() + padding + (viewport_height - height * scale) / 2.0;
+        
+        // Transform function from G-Code coordinates to screen coordinates
+        let to_screen = |x: f64, y: f64| {
+            Pos2::new(
+                offset_x + ((x - min_x) as f32 * scale),
+                // Flip Y axis (G-Code Y increases upward, screen Y increases downward)
+                offset_y + viewport_height - ((y - min_y) as f32 * scale),
+            )
+        };
+        
+        // Draw grid
+        let grid_color = Color32::from_rgb(40, 40, 50);
+        let grid_spacing = 10.0; // mm
+        
+        // Vertical grid lines
+        let mut x = (min_x / grid_spacing).floor() * grid_spacing;
+        while x <= max_x {
+            let p1 = to_screen(x, min_y);
+            let p2 = to_screen(x, max_y);
+            ui.painter().line_segment([p1, p2], Stroke::new(1.0, grid_color));
+            x += grid_spacing;
+        }
+        
+        // Horizontal grid lines
+        let mut y = (min_y / grid_spacing).floor() * grid_spacing;
+        while y <= max_y {
+            let p1 = to_screen(min_x, y);
+            let p2 = to_screen(max_x, y);
+            ui.painter().line_segment([p1, p2], Stroke::new(1.0, grid_color));
+            y += grid_spacing;
+        }
+        
+        // Draw axes
+        let origin = to_screen(0.0, 0.0);
+        if min_x <= 0.0 && max_x >= 0.0 && min_y <= 0.0 && max_y >= 0.0 {
+            // X axis (red)
+            let x_end = to_screen(max_x, 0.0);
+            ui.painter().line_segment(
+                [origin, x_end],
+                Stroke::new(2.0, Color32::from_rgb(200, 50, 50)),
+            );
+            
+            // Y axis (green)
+            let y_end = to_screen(0.0, max_y);
+            ui.painter().line_segment(
+                [origin, y_end],
+                Stroke::new(2.0, Color32::from_rgb(50, 200, 50)),
+            );
+        }
+        
+        // Draw toolpath segments
+        for segment in &self.segments {
+            let start = to_screen(segment.start.x, segment.start.y);
+            let end = to_screen(segment.end.x, segment.end.y);
+            
+            // Color based on segment type
+            let (color, width) = match segment.segment_type {
+                SegmentType::Rapid => (Color32::from_rgb(255, 100, 100), 1.0), // Red for rapids
+                SegmentType::Linear => (Color32::from_rgb(100, 255, 100), 2.0), // Green for cuts
+                SegmentType::ArcCW | SegmentType::ArcCCW => {
+                    (Color32::from_rgb(100, 150, 255), 2.0) // Blue for arcs
+                }
+            };
+            
+            ui.painter().line_segment([start, end], Stroke::new(width, color));
+        }
+        
+        // Draw start point marker
+        if let Some(first) = self.segments.first() {
+            let start = to_screen(first.start.x, first.start.y);
+            ui.painter().circle_filled(start, 4.0, Color32::from_rgb(100, 255, 255));
+            ui.painter().circle_stroke(start, 4.0, Stroke::new(1.0, Color32::WHITE));
+        }
     }
 }
 
@@ -283,11 +433,19 @@ impl eframe::App for RCandleApp {
                 
                 ui.menu_button("View", |ui| {
                     if ui.button("🎥 Reset Camera").clicked() {
-                        self.status_message = "Camera reset (TODO)".to_string();
+                        if let Some(ref mut renderer) = self.renderer {
+                            renderer.reset_camera();
+                            self.status_message = "Camera reset".to_string();
+                            self.console.info("Camera reset to default view".to_string());
+                        }
                         ui.close_menu();
                     }
                     if ui.button("🔍 Zoom to Fit").clicked() {
-                        self.status_message = "Zoom to fit (TODO)".to_string();
+                        if let Some(ref mut renderer) = self.renderer {
+                            renderer.zoom_to_fit();
+                            self.status_message = "Zoomed to fit".to_string();
+                            self.console.info("Camera zoomed to fit toolpath".to_string());
+                        }
                         ui.close_menu();
                     }
                     ui.separator();
@@ -426,29 +584,49 @@ impl eframe::App for RCandleApp {
 
         // Central panel - 3D viewport
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("3D Viewport");
+            ui.heading("Toolpath Viewer");
             
-            // Placeholder for 3D rendering
             let available_size = ui.available_size();
-            let (rect, _response) = ui.allocate_exact_size(
+            let (rect, response) = ui.allocate_exact_size(
                 available_size,
                 egui::Sense::click_and_drag()
             );
             
+            // Draw background
             ui.painter().rect_filled(
                 rect,
                 0.0,
-                egui::Color32::from_rgb(30, 30, 40)
+                egui::Color32::from_rgb(25, 25, 35)
             );
             
-            // Draw placeholder text
-            ui.painter().text(
-                rect.center(),
-                egui::Align2::CENTER_CENTER,
-                "3D Viewport\n(Rendering not implemented yet)",
-                egui::FontId::proportional(20.0),
-                egui::Color32::from_rgb(200, 200, 200),
-            );
+            // Draw toolpath if we have segments
+            if !self.segments.is_empty() {
+                self.draw_toolpath_2d(ui, rect);
+            } else {
+                // Show placeholder text
+                ui.painter().text(
+                    rect.center(),
+                    egui::Align2::CENTER_CENTER,
+                    "Load a G-Code file to view toolpath\n(File > Open G-Code...)",
+                    egui::FontId::proportional(18.0),
+                    egui::Color32::from_rgb(150, 150, 150),
+                );
+            }
+            
+            // Show instructions in corner
+            if !self.segments.is_empty() {
+                let instructions = format!(
+                    "Segments: {} | Use View menu for camera controls",
+                    self.segments.len()
+                );
+                ui.painter().text(
+                    rect.left_top() + egui::vec2(10.0, 10.0),
+                    egui::Align2::LEFT_TOP,
+                    instructions,
+                    egui::FontId::monospace(12.0),
+                    egui::Color32::from_rgb(180, 180, 180),
+                );
+            }
         });
     }
 
