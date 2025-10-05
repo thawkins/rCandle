@@ -1,0 +1,130 @@
+[package]
+name = "rcandle"
+version = "0.1.0"
+edition = "2021"
+authors = ["rCandle Contributors"]
+license = "GPL-3.0"
+description = "A Rust GRBL controller application with G-Code visualizer"
+repository = "https://github.com/yourusername/rCandle"
+keywords = ["cnc", "grbl", "gcode", "visualization", "controller"]
+categories = ["command-line-utilities", "visualization"]
+rust-version = "1.75"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+
+# Serial communication
+serialport = "4.3"
+
+# Networking
+tokio-tungstenite = "0.21"
+
+# UI Framework (choose one - uncomment the one you select)
+# iced = { version = "0.12", features = ["tokio", "wgpu"] }
+# egui = "0.27"
+# eframe = { version = "0.27", features = ["wgpu"] }  # egui application framework
+
+# Graphics/Rendering
+wgpu = "0.19"
+bytemuck = { version = "1.14", features = ["derive"] }
+glam = { version = "0.27", features = ["serde"] }
+
+# Parsing
+nom = "7.1"
+regex = "1.10"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+
+# Scripting
+rhai = { version = "1.17", features = ["sync"] }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Math & interpolation
+nalgebra = "0.32"
+
+# File dialogs
+rfd = "0.14"
+
+# CLI (for testing and development)
+clap = { version = "4.5", features = ["derive"] }
+
+# Configuration
+config = "0.14"
+
+# Date/time
+chrono = "0.4"
+
+# Cross-platform paths
+directories = "5.0"
+
+[dev-dependencies]
+# Testing
+tokio-test = "0.4"
+mockall = "0.12"
+proptest = "1.4"
+criterion = "0.5"
+
+[build-dependencies]
+# For building shaders or other assets
+# Add as needed
+
+[profile.dev]
+opt-level = 0
+debug = true
+# Optimize dependencies even in dev mode for better performance
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[profile.bench]
+inherits = "release"
+
+# Workspace configuration
+[workspace]
+members = []
+
+# Optional: Split into multiple crates for better organization
+# [workspace]
+# members = [
+#     "rcandle",
+#     "rcandle-core",
+#     "rcandle-parser",
+#     "rcandle-connection",
+#     "rcandle-renderer",
+# ]
+
+[[bin]]
+name = "rcandle"
+path = "src/main.rs"
+
+# Optional: CLI tool for testing
+[[bin]]
+name = "rcandle-cli"
+path = "src/bin/cli.rs"
+required-features = []
+
+# Benchmarks
+[[bench]]
+name = "parser_bench"
+harness = false
+
+[[bench]]
+name = "renderer_bench"
+harness = false
