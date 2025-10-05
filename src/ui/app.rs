@@ -1,9 +1,11 @@
 //! Main application structure for rCandle
 
 use crate::{
+    parser::{Parser, Preprocessor, Tokenizer},
     settings::Settings,
     state::AppState,
 };
+use std::path::PathBuf;
 
 /// Main rCandle application state
 pub struct RCandleApp {
@@ -13,6 +15,14 @@ pub struct RCandleApp {
     app_state: AppState,
     /// Connection status display
     status_message: String,
+    /// Currently loaded file path
+    current_file: Option<PathBuf>,
+    /// G-Code content
+    gcode_content: String,
+    /// Parser instance
+    parser: Parser,
+    /// Preprocessor instance
+    preprocessor: Preprocessor,
 }
 
 impl RCandleApp {
@@ -24,13 +34,137 @@ impl RCandleApp {
         // Initialize application state
         let app_state = AppState::new();
         
+        // Create parser and preprocessor
+        let parser = Parser::new();
+        let preprocessor = Preprocessor::new();
+        
         tracing::info!("rCandle UI initialized");
         
         Self {
             settings,
             app_state,
             status_message: "Ready".to_string(),
+            current_file: None,
+            gcode_content: String::new(),
+            parser,
+            preprocessor,
         }
+    }
+
+    /// Open a G-Code file
+    fn open_file(&mut self) {
+        if let Some(path) = rfd::FileDialog::new()
+            .add_filter("G-Code", &["gcode", "nc", "ngc", "txt"])
+            .add_filter("All Files", &["*"])
+            .pick_file()
+        {
+            match std::fs::read_to_string(&path) {
+                Ok(content) => {
+                    self.gcode_content = content;
+                    self.current_file = Some(path.clone());
+                    self.status_message = format!("Loaded: {}", path.display());
+                    tracing::info!("Loaded G-Code file: {:?}", path);
+                    
+                    // Parse the G-Code
+                    self.parse_gcode();
+                }
+                Err(e) => {
+                    self.status_message = format!("Error loading file: {}", e);
+                    tracing::error!("Failed to load file {:?}: {}", path, e);
+                }
+            }
+        }
+    }
+
+    /// Save the current G-Code to a file
+    fn save_file(&mut self) {
+        if let Some(path) = &self.current_file {
+            if let Err(e) = std::fs::write(path, &self.gcode_content) {
+                self.status_message = format!("Error saving file: {}", e);
+                tracing::error!("Failed to save file {:?}: {}", path, e);
+            } else {
+                self.status_message = format!("Saved: {}", path.display());
+                tracing::info!("Saved G-Code file: {:?}", path);
+            }
+        } else {
+            self.save_file_as();
+        }
+    }
+
+    /// Save the current G-Code to a new file
+    fn save_file_as(&mut self) {
+        if let Some(path) = rfd::FileDialog::new()
+            .add_filter("G-Code", &["gcode", "nc", "ngc"])
+            .save_file()
+        {
+            if let Err(e) = std::fs::write(&path, &self.gcode_content) {
+                self.status_message = format!("Error saving file: {}", e);
+                tracing::error!("Failed to save file {:?}: {}", path, e);
+            } else {
+                self.current_file = Some(path.clone());
+                self.status_message = format!("Saved: {}", path.display());
+                tracing::info!("Saved G-Code file: {:?}", path);
+            }
+        }
+    }
+
+    /// Parse the current G-Code content
+    fn parse_gcode(&mut self) {
+        // Tokenize
+        let mut tokenizer = Tokenizer::new(&self.gcode_content);
+        let tokens = match tokenizer.tokenize() {
+            Ok(t) => t,
+            Err(e) => {
+                self.status_message = format!("Tokenization error: {}", e);
+                tracing::error!("Failed to tokenize G-Code: {}", e);
+                return;
+            }
+        };
+
+        // Parse tokens to commands
+        let commands = match self.parser.parse_tokens(&tokens) {
+            Ok(c) => c,
+            Err(e) => {
+                self.status_message = format!("Parse error: {}", e);
+                tracing::error!("Failed to parse G-Code: {}", e);
+                return;
+            }
+        };
+
+        // Generate segments
+        let segments = match self.parser.generate_segments(&commands) {
+            Ok(s) => s,
+            Err(e) => {
+                self.status_message = format!("Segment generation error: {}", e);
+                tracing::error!("Failed to generate segments: {}", e);
+                return;
+            }
+        };
+
+        let segment_count = segments.len();
+        tracing::info!("Parsed {} segments", segment_count);
+        
+        // Apply preprocessing
+        let processed = match self.preprocessor.process(&segments) {
+            Ok(p) => p,
+            Err(e) => {
+                self.status_message = format!("Preprocessing error: {}", e);
+                tracing::error!("Failed to preprocess segments: {}", e);
+                return;
+            }
+        };
+        
+        let processed_count = processed.len();
+        tracing::info!("Preprocessed to {} segments", processed_count);
+        
+        // Update program state with the parsed data
+        let mut program = self.app_state.program.write();
+        program.total_lines = self.gcode_content.lines().count();
+        
+        self.status_message = format!(
+            "Parsed {} segments ({} after preprocessing)",
+            segment_count, processed_count
+        );
     }
 }
 
@@ -40,41 +174,53 @@ impl eframe::App for RCandleApp {
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
-                    if ui.button("Open G-Code...").clicked() {
-                        self.status_message = "Open file dialog (TODO)".to_string();
+                    if ui.button("📂 Open G-Code...").clicked() {
+                        self.open_file();
                         ui.close_menu();
                     }
-                    if ui.button("Save...").clicked() {
-                        self.status_message = "Save dialog (TODO)".to_string();
+                    if ui.button("💾 Save").clicked() {
+                        self.save_file();
+                        ui.close_menu();
+                    }
+                    if ui.button("💾 Save As...").clicked() {
+                        self.save_file_as();
                         ui.close_menu();
                     }
                     ui.separator();
-                    if ui.button("Exit").clicked() {
+                    if ui.button("🚪 Exit").clicked() {
                         ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                     }
                 });
                 
                 ui.menu_button("Connection", |ui| {
-                    if ui.button("Connect").clicked() {
+                    if ui.button("🔌 Connect").clicked() {
                         self.status_message = "Connecting... (TODO)".to_string();
                         ui.close_menu();
                     }
-                    if ui.button("Disconnect").clicked() {
+                    if ui.button("⏸ Disconnect").clicked() {
                         self.status_message = "Disconnected".to_string();
                         ui.close_menu();
                     }
                 });
                 
                 ui.menu_button("View", |ui| {
-                    if ui.button("Reset Camera").clicked() {
+                    if ui.button("🎥 Reset Camera").clicked() {
                         self.status_message = "Camera reset (TODO)".to_string();
+                        ui.close_menu();
+                    }
+                    if ui.button("🔍 Zoom to Fit").clicked() {
+                        self.status_message = "Zoom to fit (TODO)".to_string();
                         ui.close_menu();
                     }
                 });
                 
                 ui.menu_button("Help", |ui| {
-                    if ui.button("About").clicked() {
+                    if ui.button("ℹ About").clicked() {
                         self.status_message = format!("rCandle v{}", crate::VERSION);
+                        ui.close_menu();
+                    }
+                    if ui.button("📖 Documentation").clicked() {
+                        self.status_message = "Opening documentation... (TODO)".to_string();
                         ui.close_menu();
                     }
                 });
@@ -87,8 +233,27 @@ impl eframe::App for RCandleApp {
                 ui.label("Status:");
                 ui.label(&self.status_message);
                 ui.separator();
+                
+                // Display current file
+                if let Some(path) = &self.current_file {
+                    ui.label(format!("📄 {}", path.file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("Unknown")));
+                    ui.separator();
+                }
+                
                 ui.label(format!("Units: {}", 
                     if self.settings.general.units_metric { "mm" } else { "inch" }));
+                
+                // Connection indicator
+                ui.separator();
+                let connected = self.app_state.is_connected();
+                let color = if connected { 
+                    egui::Color32::GREEN 
+                } else { 
+                    egui::Color32::RED 
+                };
+                ui.colored_label(color, if connected { "🟢 Connected" } else { "🔴 Disconnected" });
             });
         });
 
@@ -157,9 +322,31 @@ impl eframe::App for RCandleApp {
                 ui.separator();
                 
                 egui::ScrollArea::vertical().show(ui, |ui| {
-                    ui.label("No G-Code loaded");
-                    ui.label("");
-                    ui.label("Use File -> Open to load a G-Code file");
+                    if self.gcode_content.is_empty() {
+                        ui.label("No G-Code loaded");
+                        ui.label("");
+                        ui.label("Use File → Open to load a G-Code file");
+                    } else {
+                        // Display G-Code with line numbers
+                        egui::ScrollArea::vertical()
+                            .id_source("gcode_scroll")
+                            .show(ui, |ui| {
+                                ui.style_mut().override_text_style = Some(egui::TextStyle::Monospace);
+                                
+                                for (line_num, line) in self.gcode_content.lines().enumerate() {
+                                    ui.horizontal(|ui| {
+                                        ui.label(
+                                            egui::RichText::new(format!("{:4} ", line_num + 1))
+                                                .color(egui::Color32::DARK_GRAY)
+                                        );
+                                        ui.label(line);
+                                    });
+                                }
+                            });
+                        
+                        ui.separator();
+                        ui.label(format!("Lines: {}", self.gcode_content.lines().count()));
+                    }
                 });
             });
 
