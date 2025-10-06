@@ -1589,10 +1589,10 @@ impl RCandleApp {
                 );
             });
         
-        // Centered splash window
+        // Centered splash window - Updated to 240x100 pixels per Issue #3 comments
         egui::Window::new("splash_window")
             .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-            .fixed_size([180.0, 100.0])
+            .fixed_size([240.0, 100.0])
             .title_bar(false)
             .resizable(false)
             .collapsible(false)
