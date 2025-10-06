@@ -24,3 +24,6 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Application name
 pub const APP_NAME: &str = env!("CARGO_PKG_NAME");
+
+/// Repository URL
+pub const REPOSITORY_URL: &str = env!("CARGO_PKG_REPOSITORY");

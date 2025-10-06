@@ -22,7 +22,7 @@ fn main() -> anyhow::Result<()> {
     // Configure and run the egui application
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title("rCandle - GRBL Controller")
+            .with_title(&format!("rCandle v{} - GRBL Controller", rcandle::VERSION))
             .with_inner_size([1280.0, 800.0])
             .with_min_inner_size([800.0, 600.0])
             .with_active(true)

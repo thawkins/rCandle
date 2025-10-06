@@ -256,6 +256,87 @@ impl MachineState {
     pub fn is_running(&self) -> bool {
         matches!(self.status, MachineStatus::Run | MachineStatus::Jog | MachineStatus::Home)
     }
+    
+    /// Update machine state from GRBL status report
+    /// 
+    /// This updates the machine state based on status reports received from GRBL
+    /// (in response to `?` queries).
+    pub fn update_from_grbl_status(&mut self, grbl_status: &crate::grbl::GrblStatus) {
+        // Update machine status
+        self.status = match grbl_status.state {
+            crate::grbl::MachineState::Idle => MachineStatus::Idle,
+            crate::grbl::MachineState::Run => MachineStatus::Run,
+            crate::grbl::MachineState::Hold => MachineStatus::Hold,
+            crate::grbl::MachineState::Jog => MachineStatus::Jog,
+            crate::grbl::MachineState::Alarm => MachineStatus::Alarm,
+            crate::grbl::MachineState::Door => MachineStatus::Door,
+            crate::grbl::MachineState::Check => MachineStatus::Check,
+            crate::grbl::MachineState::Home => MachineStatus::Home,
+            crate::grbl::MachineState::Sleep => MachineStatus::Sleep,
+        };
+        
+        // Update machine position if available
+        if let Some(mpos) = grbl_status.mpos {
+            self.machine_position = Position::new(mpos.x, mpos.y, mpos.z);
+        }
+        
+        // Update work position if available
+        if let Some(wpos) = grbl_status.wpos {
+            self.work_position = Position::new(wpos.x, wpos.y, wpos.z);
+        }
+        
+        // If we have work coordinate offset, we can calculate the other position
+        if let Some(wco) = grbl_status.wco {
+            let offset = Position::new(wco.x, wco.y, wco.z);
+            
+            // Update work offset for current coordinate system
+            self.set_work_offset(self.coordinate_system, offset);
+            
+            // If we have machine position, calculate work position
+            if grbl_status.mpos.is_some() {
+                self.work_position = Position::new(
+                    self.machine_position.x - offset.x,
+                    self.machine_position.y - offset.y,
+                    self.machine_position.z - offset.z,
+                );
+            }
+            // If we have work position, calculate machine position
+            else if grbl_status.wpos.is_some() {
+                self.machine_position = Position::new(
+                    self.work_position.x + offset.x,
+                    self.work_position.y + offset.y,
+                    self.work_position.z + offset.z,
+                );
+            }
+        }
+        
+        // Update feed rate if available
+        if let Some(feed_rate) = grbl_status.feed_rate {
+            self.feed_rate = feed_rate;
+        }
+        
+        // Update spindle speed if available
+        if let Some(spindle_speed) = grbl_status.spindle_speed {
+            self.spindle_speed = spindle_speed;
+            self.spindle_enabled = spindle_speed > 0.0;
+        }
+        
+        // Update override values if available
+        if let Some(feed_ov) = grbl_status.feed_override {
+            self.feed_override = feed_ov as f64;
+        }
+        if let Some(rapid_ov) = grbl_status.rapid_override {
+            self.rapid_override = rapid_ov as f64;
+        }
+        if let Some(spindle_ov) = grbl_status.spindle_override {
+            self.spindle_override = spindle_ov as f64;
+        }
+        
+        // Update buffer state if available
+        if let Some((planner, _rx)) = grbl_status.buffer {
+            self.buffer_state = planner as u32;
+        }
+    }
 }
 
 #[cfg(test)]

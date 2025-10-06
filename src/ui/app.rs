@@ -96,6 +96,12 @@ pub struct RCandleApp {
     prev_spindle_override: f64,
     /// Response receiver for GRBL responses
     response_receiver: Option<tokio::sync::broadcast::Receiver<GrblResponse>>,
+    /// Status receiver for GRBL status updates
+    status_receiver: Option<tokio::sync::broadcast::Receiver<crate::grbl::GrblStatus>>,
+    /// Show splash screen
+    show_splash: bool,
+    /// Splash screen start time
+    splash_start_time: std::time::Instant,
 }
 
 impl RCandleApp {
@@ -190,6 +196,9 @@ impl RCandleApp {
             prev_rapid_override: 100.0,
             prev_spindle_override: 100.0,
             response_receiver: None,
+            status_receiver: None,
+            show_splash: true,
+            splash_start_time: std::time::Instant::now(),
         }
     }
 
@@ -570,6 +579,25 @@ impl RCandleApp {
         }
         
         tracing::debug!("GRBL response: {:?}", response);
+    }
+    
+    /// Handle GRBL status update - Issue #1
+    /// 
+    /// This method processes status reports from GRBL (received in response to `?` queries)
+    /// and updates the machine state accordingly.
+    fn handle_grbl_status_update(&mut self, status: crate::grbl::GrblStatus) {
+        // Update machine state from the GRBL status
+        let mut machine = self.app_state.machine.write();
+        machine.update_from_grbl_status(&status);
+        drop(machine);
+        
+        // Log status updates (reduced frequency to avoid spam)
+        static STATUS_COUNT: AtomicUsize = AtomicUsize::new(0);
+        let count = STATUS_COUNT.fetch_add(1, Ordering::Relaxed);
+        if count % 10 == 0 {  // Log every 10th status update
+            tracing::debug!("Status update: state={:?}, MPos={:?}, WPos={:?}", 
+                status.state, status.mpos, status.wpos);
+        }
     }
     
     /// Send spindle control command
@@ -1547,6 +1575,67 @@ impl RCandleApp {
             self.editing_script = None;
         }
     }
+    
+    /// Show splash screen - Issue #3
+    fn show_splash_screen(&mut self, ctx: &egui::Context) {
+        // Check if 10 seconds have elapsed
+        if self.splash_start_time.elapsed() > Duration::from_secs(10) {
+            self.show_splash = false;
+            return;
+        }
+        
+        // Semi-transparent background overlay
+        egui::Area::new("splash_background".into())
+            .fixed_pos(egui::pos2(0.0, 0.0))
+            .show(ctx, |ui| {
+                let screen_rect = ctx.screen_rect();
+                ui.painter().rect_filled(
+                    screen_rect,
+                    0.0,
+                    egui::Color32::from_black_alpha(200),
+                );
+            });
+        
+        // Centered splash window
+        egui::Window::new("splash_window")
+            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            .fixed_size([180.0, 100.0])
+            .title_bar(false)
+            .resizable(false)
+            .collapsible(false)
+            .frame(egui::Frame::window(&ctx.style()).fill(egui::Color32::from_rgb(40, 40, 40)))
+            .show(ctx, |ui| {
+                ui.vertical_centered(|ui| {
+                    ui.add_space(5.0);
+                    
+                    // Application name at 4x normal size (normal is ~14, so 4x = ~56)
+                    ui.label(
+                        egui::RichText::new("rCandle")
+                            .size(56.0)
+                            .strong()
+                            .color(egui::Color32::from_rgb(100, 200, 255))
+                    );
+                    
+                    ui.add_space(5.0);
+                    
+                    // Version number at normal size
+                    ui.label(
+                        egui::RichText::new(format!("v{}", crate::VERSION))
+                            .size(14.0)
+                            .color(egui::Color32::from_rgb(200, 200, 200))
+                    );
+                    
+                    ui.add_space(5.0);
+                    
+                    // Repository link
+                    ui.label(
+                        egui::RichText::new(crate::REPOSITORY_URL)
+                            .size(10.0)
+                            .color(egui::Color32::from_rgb(150, 150, 200))
+                    );
+                });
+            });
+    }
 }
 
 impl eframe::App for RCandleApp {
@@ -1568,12 +1657,14 @@ impl eframe::App for RCandleApp {
         
         // Now update the fields outside the borrow
         if let Some(manager) = manager_to_store {
-            // Subscribe to responses before storing the manager
+            // Subscribe to responses and status before storing the manager
             let manager_guard = tokio::runtime::Handle::current().block_on(manager.lock());
             let response_rx = manager_guard.subscribe_responses();
+            let status_rx = manager_guard.subscribe_status();
             drop(manager_guard);
             
             self.response_receiver = Some(response_rx);
+            self.status_receiver = Some(status_rx);
             self.connection_manager = Some(manager);
             self.status_message = "Connected".to_string();
             self.console.info("Connection established".to_string());
@@ -1595,6 +1686,20 @@ impl eframe::App for RCandleApp {
         // Handle all received responses
         for response in responses {
             self.handle_grbl_response(response);
+        }
+        
+        // Check for status updates from GRBL - Issue #1
+        let mut status_updates = Vec::new();
+        if let Some(ref mut rx) = self.status_receiver {
+            // Try to receive status updates without blocking
+            while let Ok(status) = rx.try_recv() {
+                status_updates.push(status);
+            }
+        }
+        
+        // Handle all received status updates
+        for status in status_updates {
+            self.handle_grbl_status_update(status);
         }
         
         // Debug: Log that update is being called
@@ -2428,6 +2533,11 @@ impl eframe::App for RCandleApp {
         // Show script editor dialog - Phase 8
         if self.show_script_editor {
             self.show_script_editor_window(ctx);
+        }
+        
+        // Splash screen - Issue #3
+        if self.show_splash {
+            self.show_splash_screen(ctx);
         }
     }
 
