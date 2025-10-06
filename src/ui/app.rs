@@ -528,6 +528,13 @@ impl RCandleApp {
     
     /// Handle a response received from GRBL
     fn handle_grbl_response(&mut self, response: GrblResponse) {
+        // Skip status reports - they're handled separately and would flood the console
+        // Issue #4: Don't display status updates in console
+        if matches!(response, GrblResponse::Status(_)) {
+            tracing::debug!("GRBL status response: {:?}", response);
+            return;
+        }
+        
         // Format the response for display
         let response_text = match &response {
             GrblResponse::Ok => "ok".to_string(),
@@ -539,23 +546,9 @@ impl RCandleApp {
                 let msg = response.error_message().unwrap_or("Unknown alarm");
                 format!("ALARM:{} ({})", code, msg)
             }
-            GrblResponse::Status(status) => {
-                // Format status report
-                if let Some(mpos) = &status.mpos {
-                    format!("<{:?}|MPos:{:.3},{:.3},{:.3}>", 
-                        status.state,
-                        mpos.x,
-                        mpos.y,
-                        mpos.z)
-                } else if let Some(wpos) = &status.wpos {
-                    format!("<{:?}|WPos:{:.3},{:.3},{:.3}>", 
-                        status.state,
-                        wpos.x,
-                        wpos.y,
-                        wpos.z)
-                } else {
-                    format!("<{:?}>", status.state)
-                }
+            GrblResponse::Status(_) => {
+                // This case is now unreachable due to early return above
+                unreachable!()
             }
             GrblResponse::Welcome { version } => {
                 format!("Grbl {} ['$' for help]", version)
