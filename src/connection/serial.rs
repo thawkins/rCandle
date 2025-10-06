@@ -86,8 +86,31 @@ impl SerialConnection {
     ///
     /// # Returns
     /// Vector of available serial port information
+    /// 
+    /// On Linux, only returns USB serial ports (/dev/ttyUSB* or /dev/ttyACM*)
+    /// to avoid showing system TTY devices. On other platforms, returns all ports.
     pub fn list_ports() -> Result<Vec<SerialPortInfo>> {
-        serialport::available_ports().map_err(|e| Error::Connection(e.to_string()))
+        let all_ports = serialport::available_ports()
+            .map_err(|e| Error::Connection(e.to_string()))?;
+        
+        // On Linux, filter to only show USB serial ports (Issue #5)
+        #[cfg(target_os = "linux")]
+        {
+            let filtered_ports: Vec<SerialPortInfo> = all_ports
+                .into_iter()
+                .filter(|port| {
+                    let port_name = &port.port_name;
+                    port_name.starts_with("/dev/ttyUSB") || port_name.starts_with("/dev/ttyACM")
+                })
+                .collect();
+            Ok(filtered_ports)
+        }
+        
+        // On other platforms (Windows, macOS), return all ports
+        #[cfg(not(target_os = "linux"))]
+        {
+            Ok(all_ports)
+        }
     }
 
     /// Get the current configuration
