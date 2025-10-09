@@ -487,7 +487,6 @@ impl RCandleApp {
     fn send_unlock_command(&mut self) {
         // Send directly to device, bypassing the command queue
         let manager_opt = self.connection_manager.clone();
-        let app_console = self.console.clone();
         self.status_message = "Unlocking alarm...".to_string();
         self.console.info("Sending unlock command ($X)".to_string());
         tracing::info!("Unlock command ($X)");
@@ -501,7 +500,7 @@ impl RCandleApp {
                     // Small delay between bytes to avoid overwhelming device
                     tokio::time::sleep(std::time::Duration::from_millis(5)).await;
                 }
-                let _ = app_console.info("Unlock sequence sent".to_string());
+                tracing::info!("Unlock sequence sent");
             });
         } else {
             self.console.error("Not connected: cannot send unlock sequence".to_string());
