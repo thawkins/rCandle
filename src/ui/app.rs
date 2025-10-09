@@ -485,11 +485,27 @@ impl RCandleApp {
     
     /// Send unlock command ($X) to clear alarm state
     fn send_unlock_command(&mut self) {
-        let command = GrblCommand::KillAlarmLock;
-        self.send_command(command);
+        // Send directly to device, bypassing the command queue
+        let manager_opt = self.connection_manager.clone();
+        let app_console = self.console.clone();
         self.status_message = "Unlocking alarm...".to_string();
         self.console.info("Sending unlock command ($X)".to_string());
         tracing::info!("Unlock command ($X)");
+
+        if let Some(manager) = manager_opt {
+            // Spawn an async task to send raw bytes via send_realtime on the manager
+            tokio::spawn(async move {
+                let bytes = b"$X\n";
+                for &b in bytes.iter() {
+                    let _ = manager.lock().await.send_realtime(b).await;
+                    // Small delay between bytes to avoid overwhelming device
+                    tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+                }
+                let _ = app_console.info("Unlock sequence sent".to_string());
+            });
+        } else {
+            self.console.error("Not connected: cannot send unlock sequence".to_string());
+        }
     }
     
     /// Zero a specific axis
