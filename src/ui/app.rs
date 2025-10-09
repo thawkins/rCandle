@@ -98,12 +98,6 @@ pub struct RCandleApp {
     response_receiver: Option<tokio::sync::broadcast::Receiver<GrblResponse>>,
     /// Status receiver for GRBL status updates
     status_receiver: Option<tokio::sync::broadcast::Receiver<crate::grbl::GrblStatus>>,
-    /// Show splash screen
-    show_splash: bool,
-    /// Splash screen start time
-    splash_start_time: std::time::Instant,
-    /// Splash screen image texture
-    splash_texture: Option<egui::TextureHandle>,
 }
 
 impl RCandleApp {
@@ -199,9 +193,6 @@ impl RCandleApp {
             prev_spindle_override: 100.0,
             response_receiver: None,
             status_receiver: None,
-            show_splash: true,
-            splash_start_time: std::time::Instant::now(),
-            splash_texture: None,
         }
     }
 
@@ -1572,143 +1563,6 @@ impl RCandleApp {
         }
     }
     
-    /// Show splash screen - Issue #3
-    fn show_splash_screen(&mut self, ctx: &egui::Context) {
-        // Check if 10 seconds have elapsed
-        if self.splash_start_time.elapsed() > Duration::from_secs(10) {
-            self.show_splash = false;
-            return;
-        }
-        
-        // Load splash image if not already loaded
-        if self.splash_texture.is_none() {
-            // Try to load the image using egui's image loading
-            if let Ok(image_bytes) = std::fs::read("assets/images/rcandleSplash.png") {
-                // Decode PNG using image crate (it's already in dependencies through egui)
-                match image::load_from_memory(&image_bytes) {
-                    Ok(img) => {
-                        let size = [img.width() as usize, img.height() as usize];
-                        let rgba = img.to_rgba8();
-                        let pixels = rgba.as_flat_samples();
-                        let color_image = egui::ColorImage::from_rgba_unmultiplied(
-                            size,
-                            pixels.as_slice(),
-                        );
-                        self.splash_texture = Some(ctx.load_texture(
-                            "splash_image",
-                            color_image,
-                            egui::TextureOptions::LINEAR,
-                        ));
-                    }
-                    Err(e) => {
-                        tracing::warn!("Failed to load splash image: {}", e);
-                    }
-                }
-            } else {
-                tracing::warn!("Failed to read splash image file");
-            }
-        }
-        
-        // Semi-transparent background overlay
-        egui::Area::new("splash_background".into())
-            .fixed_pos(egui::pos2(0.0, 0.0))
-            .show(ctx, |ui| {
-                let screen_rect = ctx.screen_rect();
-                ui.painter().rect_filled(
-                    screen_rect,
-                    0.0,
-                    egui::Color32::from_black_alpha(200),
-                );
-            });
-        
-        // Centered splash window - Updated to 240x100 pixels per Issue #3 comments
-        egui::Window::new("splash_window")
-            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-            .fixed_size([240.0, 100.0])
-            .title_bar(false)
-            .resizable(false)
-            .collapsible(false)
-            .frame(egui::Frame::none())
-            .show(ctx, |ui| {
-                // Display the image if loaded
-                if let Some(texture) = &self.splash_texture {
-                    // Show the image
-                    let image_size = egui::vec2(240.0, 100.0);
-                    let image_response = ui.add(egui::Image::new((texture.id(), image_size)));
-                    let rect = image_response.rect;
-                    
-                    // Overlay text on top of image using painter
-                    let painter = ui.painter();
-                    
-                    // Calculate positions for right-aligned text with margin
-                    let right_margin = 10.0;
-                    let text_right_x = rect.max.x - right_margin;
-                    
-                    // Application name at 4x normal size (top right)
-                    let app_name_pos = egui::pos2(text_right_x, rect.min.y + 10.0);
-                    painter.text(
-                        app_name_pos,
-                        egui::Align2::RIGHT_TOP,
-                        "rCandle",
-                        egui::FontId::proportional(56.0),
-                        egui::Color32::from_rgb(100, 200, 255),
-                    );
-                    
-                    // Version number at normal size (middle right)
-                    let version_pos = egui::pos2(text_right_x, rect.min.y + 70.0);
-                    painter.text(
-                        version_pos,
-                        egui::Align2::RIGHT_TOP,
-                        &format!("v{}", crate::VERSION),
-                        egui::FontId::proportional(14.0),
-                        egui::Color32::from_rgb(200, 200, 200),
-                    );
-                    
-                    // Repository link (bottom right)
-                    let repo_pos = egui::pos2(text_right_x, rect.max.y - 5.0);
-                    painter.text(
-                        repo_pos,
-                        egui::Align2::RIGHT_BOTTOM,
-                        crate::REPOSITORY_URL,
-                        egui::FontId::proportional(10.0),
-                        egui::Color32::from_rgb(150, 150, 200),
-                    );
-                } else {
-                    // Fallback if image fails to load - show text only (right-aligned)
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
-                        ui.vertical(|ui| {
-                            ui.add_space(5.0);
-                            
-                            // Application name at 4x normal size
-                            ui.label(
-                                egui::RichText::new("rCandle")
-                                    .size(56.0)
-                                    .strong()
-                                    .color(egui::Color32::from_rgb(100, 200, 255))
-                            );
-                            
-                            ui.add_space(5.0);
-                            
-                            // Version number at normal size
-                            ui.label(
-                                egui::RichText::new(format!("v{}", crate::VERSION))
-                                    .size(14.0)
-                                    .color(egui::Color32::from_rgb(200, 200, 200))
-                            );
-                            
-                            ui.add_space(5.0);
-                            
-                            // Repository link
-                            ui.label(
-                                egui::RichText::new(crate::REPOSITORY_URL)
-                                    .size(10.0)
-                                    .color(egui::Color32::from_rgb(150, 150, 200))
-                            );
-                        });
-                    });
-                }
-            });
-    }
 }
 
 impl eframe::App for RCandleApp {
@@ -2608,10 +2462,6 @@ impl eframe::App for RCandleApp {
             self.show_script_editor_window(ctx);
         }
         
-        // Splash screen - Issue #3
-        if self.show_splash {
-            self.show_splash_screen(ctx);
-        }
     }
 
     fn save(&mut self, _storage: &mut dyn eframe::Storage) {

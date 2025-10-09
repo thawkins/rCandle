@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@github/copilot": "^0.0.337",
+    "tweakgc": "^0.0.3"
+  }
+}
