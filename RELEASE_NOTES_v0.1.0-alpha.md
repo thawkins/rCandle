@@ -232,7 +232,7 @@ cargo run --release
    - Click "Connect"
 
 3. **Control Machine**
-   - Click "Home" to home the machine
+   - Click "🏠" to home the machine
    - Use jog controls to move axes
    - Load G-Code files
    - Execute programs

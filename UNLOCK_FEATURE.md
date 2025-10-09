@@ -24,7 +24,7 @@ Previously, users had to manually type `$X` in the console. This button provides
 
 ### Button Location
 
-The unlock button is located in the **Jog Controls** panel, directly below the Home button:
+The unlock button is located in the **Jog Controls** panel, directly below the 🏠 button:
 
 ```
     [↑ Y+]
@@ -321,7 +321,7 @@ Possible improvements:
 ```
 feat: Add unlock button to jog panel for GRBL alarm clearing
 
-- Added 🔓 Unlock button in jog controls below Home button
+- Added 🔓 Unlock button in jog controls below 🏠 button
 - Sends $X command to clear GRBL alarm states
 - Updates status message and logs to console
 - No new dependencies, uses existing KillAlarmLock command

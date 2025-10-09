@@ -12,7 +12,7 @@ Successfully implemented comprehensive enhanced control panels for the rCandle U
 - **Step Size Selector**: Quick selection buttons (0.1, 1, 10, 100 mm/inch)
 - **XY Jog Grid**: Directional buttons arranged like a D-pad
   - Y+ (↑), Y- (↓), X- (←), X+ (→)
-  - Home button (⌂) in center for homing cycle
+  - 🏠 button (⌂) in center for homing cycle
 - **Z-Axis Controls**: Separate Z+ (↑) and Z- (↓) buttons
 - **Zero Commands**:
   - Individual axis zeroing (Zero X, Zero Y, Zero Z)

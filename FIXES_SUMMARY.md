@@ -82,7 +82,7 @@ let _guard = runtime.enter();
    - Connection manager properly stored
 
 2. **Home Command**
-   - Click "Home" button
+   - Click "🏠" button
    - Command sent: `$H`
    - GRBL responds and homes the machine
    - ✅ **WORKING**
@@ -96,7 +96,7 @@ let _guard = runtime.enter();
 ### Command Flow Verified
 
 ```
-User Action (Home button clicked)
+User Action (🏠 button clicked)
   ↓
 UI: send_home_command()
   ↓

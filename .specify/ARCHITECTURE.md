@@ -661,7 +661,7 @@ User clicks "Open File"
 ### 4.2 Sending Command and Getting Response
 
 ```
-User clicks "Home" button
+User clicks "🏠" button
          ↓
    UI generates Message::HomeCommand
          ↓

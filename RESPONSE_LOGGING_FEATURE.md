@@ -319,7 +319,7 @@ To test with your laser engraver:
 2. **Command Test**
    - Click Unlock button
    - Watch console for: `ok` response
-   - Click Home button
+   - Click 🏠 button
    - Watch console for: `ok` and status updates
 
 3. **Error Test**

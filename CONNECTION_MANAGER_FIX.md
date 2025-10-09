@@ -273,7 +273,7 @@ After this fix:
    - Connection manager is stored successfully
 
 2. **Command Sending**:
-   - Click "Home" button
+   - Click "🏠" button
    - Command is sent to GRBL controller
    - Console shows command was sent
    - No "Not connected" errors

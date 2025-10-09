@@ -150,7 +150,7 @@
   - **Jog Controls with Button Grid**:
     - Step size selector (0.1, 1, 10, 100 mm/inch)
     - XY jog grid with directional buttons (↑, ↓, ←, →)
-    - Home button (⌂) for homing cycle
+    - 🏠 button (⌂) for homing cycle
     - Separate Z-axis jog controls (↑ Z+, Z- ↓)
     - Zero axis buttons (Zero X, Y, Z individually)
     - Zero All button for setting all axes to zero

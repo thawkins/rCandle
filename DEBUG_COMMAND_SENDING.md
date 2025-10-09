@@ -61,7 +61,7 @@ RUST_LOG=info cargo run 2>&1 | tee debug_output.log
      - "Connection manager stored successfully"
 
 3. **Send Home Command**
-   - Click "Home" button
+   - Click "🏠" button
    - Watch for:
      - "send_command called with: HomingCycle"
      - "send_command: connection OK, enqueueing command"
@@ -257,7 +257,7 @@ If these don't work, the device may not be running GRBL or may be in a locked st
 - [ ] Status: ___________
 
 ### Command Phase  
-- [ ] Home button clicked
+- [ ] 🏠 button clicked
 - [ ] send_command() called
 - [ ] Command enqueued
 - [ ] Command sent to serial

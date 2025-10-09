@@ -199,7 +199,7 @@ To test with your laser engraver:
    - Verify changes to "🔓 READY (Idle)" in green
 
 2. **State Change Test**
-   - Click Home button
+   - Click 🏠 button
    - Watch indicator show "🔓 READY (Home)"
    - Wait for homing to complete
    - Verify shows "🔓 READY (Idle)"

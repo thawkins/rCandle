@@ -25,7 +25,7 @@
 **Purpose**: One-click GRBL alarm clearing
 
 **Implementation**:
-- Button location: Jog panel, below Home button
+- Button location: Jog panel, below 🏠 button
 - Sends `$X` command to GRBL
 - Updates status message: "Unlocking alarm..."
 - Logs to console and tracing system
