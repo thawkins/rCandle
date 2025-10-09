@@ -1978,7 +1978,7 @@ impl eframe::App for RCandleApp {
                         if ui.button("← X-").clicked() {
                             self.send_jog_command(-self.jog_step_size, 0.0, 0.0);
                         }
-                        if ui.button("⌂ Home").clicked() {
+                        if ui.button("🏠").clicked() {
                             self.send_home_command();
                         }
                         if ui.button("X+ →").clicked() {
