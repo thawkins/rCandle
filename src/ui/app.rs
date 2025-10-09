@@ -69,7 +69,7 @@ pub struct RCandleApp {
     /// Pending connection manager (set by async connection task)
     pending_connection_manager: Option<Arc<TokioMutex<Option<Arc<TokioMutex<ConnectionManager>>>>>>,
     /// Command queue for GRBL
-    command_queue: Arc<TokioMutex<CommandQueue>>,
+    _command_queue: Arc<TokioMutex<CommandQueue>>,
     /// Selected serial port for connection
     selected_port: String,
     /// Available serial ports
@@ -178,7 +178,7 @@ impl RCandleApp {
             current_line: 0,
             connection_manager: None,
             pending_connection_manager: None,
-            command_queue,
+            _command_queue: command_queue,
             selected_port: available_ports.first().cloned().unwrap_or_default(),
             available_ports,
             show_settings_dialog: false,
