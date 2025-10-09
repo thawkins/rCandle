@@ -130,7 +130,7 @@ impl RCandleApp {
         // Create console
         let mut console = Console::new();
         console.info("rCandle initialized".to_string());
-        console.info("Ready to connect to GRBL controller".to_string());
+        console.info("Ready to connect to GRBL device".to_string());
         
         // Initialize WGPU renderer
         let renderer = Self::init_renderer(cc);
@@ -366,7 +366,7 @@ impl RCandleApp {
         self.console.info(format!("Found {} serial port(s)", self.available_ports.len()));
     }
 
-    /// Connect to GRBL controller
+    /// Connect to GRBL device
     fn connect_to_grbl(&mut self, ctx: &egui::Context) {
         if self.selected_port.is_empty() {
             self.status_message = "No port selected".to_string();
@@ -413,11 +413,11 @@ impl RCandleApp {
         self.pending_connection_manager = Some(manager_slot);
     }
 
-    /// Disconnect from GRBL controller
+    /// Disconnect from GRBL device
     fn disconnect_from_grbl(&mut self) {
         if let Some(manager) = self.connection_manager.take() {
             self.status_message = "Disconnecting...".to_string();
-            self.console.info("Disconnecting from controller".to_string());
+            self.console.info("Disconnecting from device".to_string());
             
             // Spawn disconnect task
             tokio::spawn(async move {
@@ -436,7 +436,7 @@ impl RCandleApp {
     /// Send a command to GRBL
     fn send_command(&mut self, command: GrblCommand) {
         if self.connection_manager.is_none() {
-            self.console.error("Not connected to controller".to_string());
+            self.console.error("Not connected to device".to_string());
             return;
         }
         
